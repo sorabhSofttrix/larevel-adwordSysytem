@@ -3,6 +3,10 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use App\User;
+use Validator;
 
 class AuthController extends Controller
 {
@@ -21,6 +25,42 @@ class AuthController extends Controller
      *
      * @return \Illuminate\Http\JsonResponse
      */
+    
+    public function register(Request $request)
+    {
+        $validatedData = Validator::make($request->all(), ['email' => 'required|unique:users']);
+
+        if ($validatedData->fails()) {
+            return response()->json([
+                    'status' => false,
+                    'data' => [],
+                    'responseCode' => 400,
+                    'error' => $validatedData->errors()->first(),
+                ], 400);
+        } else {
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
+            if (isset($request['avatar'])) {
+                $user->addMediaFromRequest('avatar')->toMediaCollection('avatars');
+            }
+            if(isset($request['role'])) {
+                $role = Role::find($request['role']);
+                if($role) {
+                    $user->assignRole($role);
+                }
+            }
+            return response()->json([
+                    'status' => true,
+                    'data' => $user,
+                    'responseCode' => 200,
+                    'error' => ''
+            ], 200);
+        }
+    }
+
     public function login()
     {
         $credentials = request(['email', 'password']);
@@ -44,10 +84,12 @@ class AuthController extends Controller
      */
     public function me()
     {
+        $userData = auth()->user();
+        $userData->getRoleNames();
         return response()->json(
             [
                 'status' => true,
-                'data' => auth()->user(),
+                'data' => $userData,
                 'responseCode' => 200,
                 'error' => ''
             ], 200

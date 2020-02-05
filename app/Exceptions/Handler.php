@@ -75,7 +75,17 @@ class Handler extends ExceptionHandler
                     'responseCode' => 400
                 ]
             , 400);
-        }
+        } 
+        // else {
+        //     return response()->json(
+        //         [
+        //             'status' => false,
+        //             'error' => $exception,
+        //             'data' => [],
+        //             'responseCode' => 500
+        //         ]
+        //     , 500);
+        // }
         return parent::render($request, $exception);
     }
 }

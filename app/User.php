@@ -24,7 +24,7 @@ class User extends Authenticatable implements JWTSubject, HasMedia
      * @var array
      */
     protected $fillable = [
-        'name', 'email', 'password', 'about', 'tag_line'
+        'name', 'email', 'password', 'about', 'tag_line', 'parent_id', 'add_by'
     ];
 
     /**
@@ -72,5 +72,13 @@ class User extends Authenticatable implements JWTSubject, HasMedia
         $this->addMediaConversion('thumb')
             ->width(200)
             ->height(200);
+    }
+
+    public function children() {
+        return $this->hasMany('App\User', 'parent_id');
+    }
+
+    public function parent() {
+        return $this->belongsTo('App\User', 'parent_id')->with('parent');
     }
 }

@@ -16,5 +16,6 @@ Route::group([
     Route::post('me', 'AuthController@me');
     Route::post('update-user', 'AuthController@update_user_profile');
     Route::get('get-user', 'AuthController@getUser');
+    Route::get('get-user-team', 'AuthController@usersTeam');
 
 });

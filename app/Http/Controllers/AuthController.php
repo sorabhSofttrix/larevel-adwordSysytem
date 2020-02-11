@@ -42,7 +42,7 @@ class AuthController extends Controller
 
         if ($validatedData->fails()) {
             return response()->json(
-                    $this->responseObject(false, array(), 400, $validatedData->errors()->first())
+                    getResponseObject(false, array(), 400, $validatedData->errors()->first())
                     , 400);
         } else {
             $user = User::create([
@@ -64,7 +64,7 @@ class AuthController extends Controller
                 }
             }
             return response()->json(
-                    $this->responseObject(true, 'User registred successfully.', 200, '')
+                    getResponseObject(true, 'User registred successfully.', 200, '')
                 , 200);
         }
     }
@@ -91,18 +91,18 @@ class AuthController extends Controller
                 $user->save();
                 $user = User::find($request->id);
                 return response()->json(
-                    $this->responseObject(true, $this->userObject($user), 200, '')
+                    getResponseObject(true, $this->userObject($user), 200, '')
                     , 200
                 );
             } else {
                 return response()->json(
-                    $this->responseObject(false, '', 404, 'User not found')
+                    getResponseObject(false, '', 404, 'User not found')
                     , 404
                 );
             }
         } else {
             return response()->json(
-                $this->responseObject(false, '', 404, 'User id not found')
+                getResponseObject(false, '', 404, 'User id not found')
                 , 404
             );
         }
@@ -114,7 +114,7 @@ class AuthController extends Controller
 
         if (! $token = auth()->attempt($credentials)) {
             return response()->json(
-                $this->responseObject(false, '', 401, 'unauthorized (please re-check your email/password)')
+                getResponseObject(false, '', 401, 'unauthorized (please re-check your email/password)')
                 , 401);
         }
 
@@ -129,7 +129,7 @@ class AuthController extends Controller
     public function me()
     {
         return response()->json(
-            $this->responseObject(true, $this->userObject(auth()->user()), 200, '')
+            getResponseObject(true, $this->userObject(auth()->user()), 200, '')
             , 200
         );
     }
@@ -164,12 +164,12 @@ class AuthController extends Controller
                                         $this->teamUserObject(User::find($mainUser->parent_id)) : [];
             $finalResult['children'] = $fomattedUser;
             return response()->json(
-                $this->responseObject(true, $finalResult, 200, '')
+                getResponseObject(true, $finalResult, 200, '')
                 , 200
             );
         } else {
             return response()->json(
-                $this->responseObject(true, '', 404, 'User not found.')
+                getResponseObject(true, '', 404, 'User not found.')
                 , 404
             );
         }
@@ -187,12 +187,12 @@ class AuthController extends Controller
         $user = User::find($request->id);
         if($user) {
             return response()->json(
-                $this->responseObject(true, $this->userObject($user), 200, '')
+                getResponseObject(true, $this->userObject($user), 200, '')
                 , 200
             );
         } else {
             return response()->json(
-                $this->responseObject(false, '', 404, 'User not found')
+                getResponseObject(false, '', 404, 'User not found')
                 , 404
             );
         }
@@ -208,7 +208,7 @@ class AuthController extends Controller
         auth()->logout();
 
         return response()->json(
-                $this->responseObject(true, 'Successfully logged out', 200, '')
+                getResponseObject(true, 'Successfully logged out', 200, '')
             , 200);
     }
 
@@ -237,7 +237,7 @@ class AuthController extends Controller
                     'expires_in' => auth()->factory()->getTTL() * 60,
                     'user' => $this->userObject(auth()->user()),
                 );
-        return response()->json($this->responseObject(true, $data , 200, ''), 200);
+        return response()->json(getResponseObject(true, $data , 200, ''), 200);
     }
 
     
@@ -298,21 +298,5 @@ class AuthController extends Controller
         } else {
             return array();
         }
-    }
-
-    /**
-     * Get the reponse for api response in array structure.
-     *
-     * @param  status, data, responseCode, error
-     *
-     * @return array
-     */
-    public function responseObject($status, $data, $responseCode, $error){
-        return array(
-            'status' => $status,
-            'data' => $data,
-            'responseCode' => $responseCode,
-            'error' => $error
-        );
     }
 }

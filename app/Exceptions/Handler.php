@@ -50,30 +50,15 @@ class Handler extends ExceptionHandler
     {
         if($exception instanceof TokenInvalidException) {
             return response()->json(
-                [
-                    'status' => false,
-                    'error' => 'Token is invalid',
-                    'data' => [],
-                    'responseCode' => 400
-                ]
+                getResponseObject(false, [] , 400, 'Token is invalid')
             , 400);
         } else if($exception instanceof TokenExpiredException) {
             return response()->json(
-                [
-                    'status' => false,
-                    'error' => 'Token is Expired',
-                    'data' => [],
-                    'responseCode' => 400
-                ]
+                getResponseObject(false, [] , 400, 'Token is Expired')
             , 400);
         } else if($exception instanceof JWTException) {
             return response()->json(
-                [
-                    'status' => false,
-                    'error' => 'Token is Expired',
-                    'data' => [],
-                    'responseCode' => 400
-                ]
+                getResponseObject(false, [] , 400, 'issue with the Token')
             , 400);
         } 
         // else {

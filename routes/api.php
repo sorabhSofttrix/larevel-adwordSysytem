@@ -17,5 +17,9 @@ Route::group([
     Route::post('update-user', 'AuthController@update_user_profile');
     Route::get('get-user', 'AuthController@getUser');
     Route::get('get-user-team', 'AuthController@usersTeam');
+    Route::post('add-account', 'AdwordsAccountController@addAdwordsAccount');
+    Route::post('update-account', 'AdwordsAccountController@updateAdwordsAccount');
+    Route::get('get-accounts', 'AdwordsAccountController@getAdwordsAccount');
+    Route::get('get-account-info', 'AdwordsAccountController@getAccountInfo');
 
 });

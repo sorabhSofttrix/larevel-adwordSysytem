@@ -20,7 +20,6 @@ class AdwordsAccountController extends Controller
     {
         $this->middleware('jwt', ['except' => ['login']]);
     }
-
     
     /**
      * get a all Adwords Account.
@@ -30,6 +29,8 @@ class AdwordsAccountController extends Controller
     public function getAccountInfo(Request $request){
         if(isset($request['id']) && $request->id) {
           $account = AdwordsAccount::find($request->id);
+          $history = $account->history();
+          $account['history'] = $history;
           if($account) {
             return response()->json(
                     getResponseObject(true, $account, 200, '')

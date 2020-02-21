@@ -31,4 +31,27 @@ if (!function_exists('changeHistoryField')) {
     }
 }
 
+if (!function_exists('convertToFloat')) {
+    
+    function convertToFloat($num, $dec =2) {
+        return round($num, $dec);
+    }
+}
+
+if (!function_exists('convertToInt')) {
+    function convertToInt($num) {
+        return (int) $num;
+    }
+}
+
+if (!function_exists('getAlertBody')) {
+
+    function getAlertBody($old, $new, $diff, $title, $text, $description) {
+        return array(
+            'title' => $title, 'text' => $text,
+            'old_value' => $old, 'difference' => $diff,
+            'new_value' => $new, 'desc' => $description
+        );
+    }
+}
 ?>

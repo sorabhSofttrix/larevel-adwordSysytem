@@ -31,4 +31,12 @@ class AdwordsAccount extends Model
         }
         return $history;
     }
+
+    public function alerts() {
+      $alerts = $this->hasMany('App\Alert', 'acc_id')
+                ->leftJoin('users','alerts.id', '=', 'users.id')
+                ->select('users.name as resolver_name','alerts.*')
+                ->get();
+      return $alerts;
+  }
 }

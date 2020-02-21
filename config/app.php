@@ -67,7 +67,7 @@ return [
     |
     */
 
-    'timezone' => 'Asia/Calcutta',
+    'timezone' => 'Asia/Kolkata',
 
     /*
     |--------------------------------------------------------------------------
@@ -175,6 +175,9 @@ return [
         // App\Providers\BroadcastServiceProvider::class,
         App\Providers\EventServiceProvider::class,
         App\Providers\RouteServiceProvider::class,
+        
+        // EXCEL
+        Maatwebsite\Excel\ExcelServiceProvider::class,
 
     ],
 
@@ -226,7 +229,10 @@ return [
         'URL' => Illuminate\Support\Facades\URL::class,
         'Validator' => Illuminate\Support\Facades\Validator::class,
         'View' => Illuminate\Support\Facades\View::class,
+        'Excel' => Maatwebsite\Excel\Facades\Excel::class,
 
     ],
+
+    'adsapi_php_path' => realpath(base_path('adsapi_php.ini'))
 
 ];

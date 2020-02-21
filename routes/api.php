@@ -18,9 +18,19 @@ Route::group([
     Route::get('get-user', 'AuthController@getUser');
     Route::get('get-user-team', 'AuthController@usersTeam');
     Route::get('get-team', 'AuthController@usersTeamByRoles');
-    Route::post('add-account', 'AdwordsAccountController@addAdwordsAccount');
+    
+    // Route::post('add-account', 'AdwordsAccountController@addAdwordsAccount');
     Route::post('update-account', 'AdwordsAccountController@updateAdwordsAccount');
     Route::get('get-accounts', 'AdwordsAccountController@getAdwordsAccount');
     Route::get('get-account-info', 'AdwordsAccountController@getAccountInfo');
+    Route::get('get-unassingned-accounts', 'AdwordsAccountController@getUnassignedAccounts');
+    Route::post('update-unassingned-accounts', 'AdwordsAccountController@updateUnassignedAccounts');
+    
 
+    Route::get('sync-gaccounts', 'AccountSyncController@syncFromGoogle');
+    Route::get('cron-compare', 'AccountSyncController@cronCompare');
+
+    
+    Route::get('get-dashboard-alerts', 'AlertController@getAllAlertsForDashboard');
+    Route::post('update-alert', 'AlertController@updateAlert');    
 });

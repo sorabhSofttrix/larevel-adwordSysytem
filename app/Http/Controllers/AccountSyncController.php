@@ -8,6 +8,8 @@ use App\AdwordsAccount;
 use App\PerformanceReport;
 use App\Alert;
 use App\User;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\AlertMail;
 use Validator;
 use Excel;
 
@@ -70,7 +72,10 @@ class AccountSyncController extends Controller
                 ->withOAuth2Credential($oAuth2Credential)
                 ->withClientCustomerId($clientCustomerId)
                 ->build();
-        $allAccounts = AdwordsAccount::where('acc_status','=','active')->get();
+        $allAccounts = AdwordsAccount::select('adwords_accounts.*','director.email as director_email','manager.email as manager_email')
+            ->leftJoin('users as manager','adwords_accounts.account_manager','manager.id')
+            ->leftJoin('users as director','adwords_accounts.account_director','director.id')
+            ->where('acc_status','=','active')->get();
         /* report selector */
         $reportSelector = new Selector();
         $reportSelector->setFields(
@@ -193,6 +198,8 @@ class AccountSyncController extends Controller
                     'alerts' => $alertData,
                 );
                 $alertRecord = Alert::Create($alertData);
+                // Mail::to($account->manager_email)->cc($account->director_email)->send(new AlertMail($alertData));
+                // dd($account);
             }
         }
 
@@ -363,61 +370,4 @@ class AccountSyncController extends Controller
         }
     }
 
-    /**
-     * sync Account.
-     *
-     * @return void
-     */
-    // public function syncAccount(Request $request) {
-    // 	$validatedData = Validator::make($request->all(), 
-    //         [
-    //             'account_file' => 'required|mimes:xlsx,csv'
-    //         ],
-    //     );
-    //     if ($validatedData->fails()) {
-    //         return response()->json(
-    //                 getResponseObject(false, array(), 400, $validatedData->errors()->first())
-    //         , 400);
-    //     } else {
-    //     	$user = auth()->user();
-    //         $sync = AccountSync::create([
-    //     		'add_by' => $user->id,
-    //     		'status' => 'empty'
-    //     	]);
-    //         if($sync) {
-    //     		$sync->addMediaFromRequest('account_file')->toMediaCollection('account_syncs_files');
-    //             $data = Excel::load($sync->getFirstMedia('account_syncs_files')->getpath())->toArray();
-    //             $records=[];
-    //             $accounts = AdwordsAccount::select('g_acc_id')->where('g_acc_id','<>','')->get()->toArray();
-    //             foreach ($data as $key => $value) {
-    //                 if($value['account_status'] == 'Active' && count($this->findId($accounts, $this->cleanID($value['customer_id'] ) ) ) == 0) {
-    //                     $records[] = array(
-    //                                     'acc_name' => $value['account_name'], 
-    //                                     'g_acc_id' => $this->cleanID($value['customer_id']),
-    //                                     'cron_time' => '24',
-    //                                     'acc_priority' => 'normal',
-    //                                     'add_by' => $user->id
-    //                                 );
-    //                 }
-    //             }
-
-    //             if($records) {
-    //                 $ada = AdwordsAccount::insert($records);
-    //                 return response()->json(
-    //                     getResponseObject(true, 'sync successfull', 200, '')
-    //                     , 200);
-    //             } else {
-    //                 return response()->json(
-    //                     getResponseObject(false, '' , 400, 'no records to update')
-    //                     , 400);
-    //             }
-    //     	} else {
-    //             return response()->json(
-    //                     getResponseObject(false, '' , 400, 'enable to perform sync')
-    //                     , 400);
-    //         }
-    //     }
-    // }
-
-    
 }

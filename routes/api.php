@@ -32,5 +32,6 @@ Route::group([
 
     
     Route::get('get-dashboard-alerts', 'AlertController@getAllAlertsForDashboard');
-    Route::post('update-alert', 'AlertController@updateAlert');    
+    Route::get('get-alerts-count', 'AlertController@getAlertsCountForDashboard');
+    Route::post('update-alert', 'AlertController@updateAlert');  
 });

@@ -10,6 +10,7 @@ use App\Alert;
 use App\User;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AlertMail;
+use App\Mail\PendingAlertMail;
 use Validator;
 use Excel;
 
@@ -129,6 +130,7 @@ class AccountSyncController extends Controller
                 'cpc' => convertToFloat($fetchedData['avgCPC'] / 1000000),
                 'impressions' => $fetchedData['impressions'],
                 'click' => $fetchedData['clicks'],
+                'ctr' => convertToFloat(str_replace('%', '', $fetchedData['ctr'])),
             );
             $performanceRecord = PerformanceReport::create(
                 $performanceData
@@ -147,41 +149,47 @@ class AccountSyncController extends Controller
                 'High CPC', '', '');
             }
 
-            if((int) $account->conversion < (int) $performanceData['conversion']) {
+            if(convertToFloat($account->ctr) > convertToFloat($performanceData['ctr']) ) {
+                $alertData[] = getAlertBody( convertToFloat($account->ctr),
+                convertToFloat($performanceData['ctr']), 
+                convertToFloat(convertToFloat($performanceData['ctr'] - convertToFloat($account->ctr))),
+                'Low CTR', '', '');
+            }
+
+            if((int) $account->conversion > (int) $performanceData['conversion']) {
                 $alertData[] = getAlertBody(
                     (int)$account['conversion'], (int)$performanceData['conversion'], 
-                    (int)$account->conversion - (int)$performanceData['conversion'],
+                    (int)$performanceData['conversion'] - (int)$account->conversion ,
                     'Low Conversions', '', '');
             }
 
-            if((float) $account->totalConversion < (float)$performanceData['totalConversion'] ) {
+            if((float) $account->totalConversion > (float)$performanceData['totalConversion'] ) {
                 $alertData[] = getAlertBody(
                     (float) $account->totalConversion, (float)$performanceData['totalConversion'], 
-                    convertToFloat( (float) $account->totalConversion - (float)$performanceData['totalConversion'] ),
+                    convertToFloat((float)$performanceData['totalConversion'] - (float) $account->totalConversion),
                     'Low ConversionsValue', '', '');
             }
 
-            if(convertToFloat( $account->cost) < convertToFloat($performanceData['cost']) ) {
+            if(convertToFloat( $account->cost) > convertToFloat($performanceData['cost']) ) {
                 $alertData[] = getAlertBody( 
                     convertToFloat($account->cost), convertToFloat($performanceData['cost']), 
-                    convertToFloat( convertToFloat($account->cost) - convertToFloat($performanceData['cost']) ),
+                    convertToFloat( convertToFloat($performanceData['cost']) - convertToFloat($account->cost) ),
                     'Low Cost', '', '');
             }
 
-            if((int) $account->impressions < (int) $performanceData['impressions']) {
+            if((int) $account->impressions > (int) $performanceData['impressions']) {
                 $alertData[] = getAlertBody(
                     (int)$account['impressions'], (int)$performanceData['impressions'], 
-                    (int)$account->impressions - (int)$performanceData['impressions'] ,
+                    (int)$performanceData['impressions'] - (int)$account->impressions ,
                     'Low Impressions', '', '');
             }
 
-            if((int) $account->click < (int) $performanceData['click']) {
+            if((int) $account->click > (int) $performanceData['click']) {
                 $alertData[] = getAlertBody(
                     (int)$account['click'], (int)$performanceData['click'], 
-                    (int)$account->click - (int)$performanceData['click'],
+                    (int)$performanceData['click'] - (int)$account->click,
                     'Low Clicks', '', '');
             }
-
             if(count($alertData)) {
                 $account->cpa = $performanceData['cpa'];
                 $account->cpc = $performanceData['cpc'];
@@ -190,6 +198,7 @@ class AccountSyncController extends Controller
                 $account->cost = $performanceData['cost'];
                 $account->impressions = $performanceData['impressions'];
                 $account->click = $performanceData['click'];
+                $account->ctr = $performanceData['ctr'];
                 $account->save();
                 $alertData = array(
                     'acc_id' => $account->id,
@@ -198,8 +207,9 @@ class AccountSyncController extends Controller
                     'alerts' => $alertData,
                 );
                 $alertRecord = Alert::Create($alertData);
-                // Mail::to($account->manager_email)->cc($account->director_email)->send(new AlertMail($alertData));
-                // dd($account);
+                Mail::to($account->manager_email)
+                      ->cc($account->director_email)
+                      ->queue(new AlertMail($alertData));
             }
         }
 
@@ -319,12 +329,12 @@ class AccountSyncController extends Controller
                     }
                     $requiredElements = array(
                         'cpa'=> 0, 'conversion'=> 0, 'totalConversion'=> 0,
-                        'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0
+                        'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0, 'ctr'=>0
                     );
                     foreach($collectedRows as $row) {
                         $requiredElements = array(
                             'cpa'=> 0, 'conversion'=> 0, 'totalConversion'=> 0,
-                            'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0
+                            'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0, 'ctr'=>0
                         );
                         $reportData = $row['@attributes'];
                         
@@ -336,6 +346,7 @@ class AccountSyncController extends Controller
                         $requiredElements['cpc'] = convertToFloat( $requiredElements['cpc'] ) + ( convertToFloat( $reportData['avgCPC'] / 1000000) );
                         $requiredElements['impressions'] = (int) $requiredElements['impressions'] + (int) $reportData['impressions']; 
                         $requiredElements['click'] = (int) $requiredElements['click'] + (int) $reportData['clicks']; 
+                        $requiredElements['ctr'] = convertToFloat( $requiredElements['ctr'] ) + convertToFloat( $reportData['ctr']);
                     }
                     $acc_array = array(
                                     'acc_name' => $g_account->getName(), 
@@ -349,7 +360,7 @@ class AccountSyncController extends Controller
                     $records[] = array_merge($acc_array, $requiredElements);
                     $requiredElements = array(
                         'cpa'=> 0, 'conversion'=> 0, 'totalConversion'=> 0,
-                        'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0
+                        'cost'=> 0, 'cpc'=> 0, 'impressions'=> 0,  'click'=> 0, 'ctr'=>0
                     );
                 }
             }
@@ -368,6 +379,28 @@ class AccountSyncController extends Controller
                 getResponseObject(false, '' , 400, 'no records found')
                 , 400);
         }
+    }
+
+    public function sendPendingMails() {
+        $alert = Alert::select("alerts.*",'account_manager','account_director', 
+                                            'manager.email as manager_email', 
+                                            'director.email as director_email',
+                                            'admin.email as admin_email',)
+            ->leftJoin('adwords_accounts as account','alerts.acc_id','account.id')
+            ->leftJoin('users as manager','account.account_manager','manager.id')
+            ->leftJoin('users as director','account.account_director','director.id')
+            ->leftJoin('users as admin','director.parent_id','admin.id')
+            ->where('alerts.status','open')
+            ->get();
+        foreach($alert as $al) {
+            Mail::to($al->manager_email)
+                ->cc($al->director_email)
+                ->bcc($al->admin_email)
+                ->queue(new PendingAlertMail($al));
+        }
+        return response()->json(
+            getResponseObject(false, 'emails sent.'   , 200, '')
+            , 200);
     }
 
 }

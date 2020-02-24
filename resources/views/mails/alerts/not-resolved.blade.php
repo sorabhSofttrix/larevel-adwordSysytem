@@ -12,7 +12,7 @@
     }
 </style>
 <div class="main">
-   <p>Hi, <br> it seems like there are some issues with : </p>
+   <p>Hi, <br> Reported issue(s) has not been resolved yet, please have a look into this : </p>
    <p>Account ID: {{$alertdata['g_id']}}</p>
    @foreach ($alertdata['alerts'] as $alert)
       <div class="issue-card">

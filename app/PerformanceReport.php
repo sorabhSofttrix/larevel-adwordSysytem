@@ -8,5 +8,5 @@ class PerformanceReport extends Model
 {
     //
     protected $fillable  = [   'acc_id', 'g_id', 'report_type', 'cpa', 'cost', 
-        'impressions', 'click', 'conversoin', 'cpc', 'totalConversion' ];
+        'impressions', 'click', 'conversion', 'cpc', 'totalConversion', 'ctr'];
 }

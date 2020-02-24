@@ -9,8 +9,9 @@ class AdwordsAccount extends Model
 {
     //
     protected $fillable = [
-      'g_acc_id','acc_name','budget','cpa','conversion_rate','cron_time','priority','account_director',
-      'account_manager', 'add_by'
+      'g_acc_id','acc_name','budget','conversion_rate','cron_time','priority','account_director',
+      'account_manager', 'add_by', 'ctr', 'cpa','cost', 'impressions', 'click', 'conversion', 
+      'cpc', 'totalConversion'
     ];
 
     /**

@@ -54,8 +54,10 @@ class AlertController extends Controller
         if($accounts) {
             $accountsIds = $accounts->toArray();
             $alerts = Alert::
-                    select('alerts.*', 'adwords_accounts.acc_name',)
+                    select('alerts.*', 'adwords_accounts.acc_name','adwords_accounts.account_director', 'adwords_accounts.account_manager','directors.name as director_name', 'managers.name as manager_name')
                     ->leftJoin('adwords_accounts', 'alerts.acc_id', '=', 'adwords_accounts.id')
+                    ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
+                    ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                     ->whereIn('alerts.acc_id', $accountsIds)
                     ->where('alerts.status','=', 'open')
                     ->get();

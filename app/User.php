@@ -81,4 +81,44 @@ class User extends Authenticatable implements JWTSubject, HasMedia
     public function parent() {
         return $this->belongsTo('App\User', 'parent_id')->with('parent');
     }
+
+    public function dashboardData(){
+        $role = $this->Roles()->pluck('id')->first();
+        $accountsAray = array( 'all'=>0, 'closed'=>0, 'active'=>0, 'paused'=>0);
+        $allAccount = [];
+        $accQuery = AdwordsAccount::
+                    select('id','g_acc_id','acc_status')
+                    ->where('acc_status','!=','requiredSetup');
+        switch ($role) {
+            case 1:
+                $accounts = $accQuery->get();
+                break;
+            case 2:
+                $id= [];
+                $ids = User::select('id')->where('parent_id', '=', $this->id)->get()->toArray();
+                foreach ($ids as $key => $value) { $id[] = $value['id']; }
+                $accounts = $accQuery->whereIn('account_director', $id)
+                            ->get(); 
+                break;
+            case 3:
+                $accounts = $accQuery->where('account_director', '=', $this->id)
+                            ->get(); 
+                break;
+            case 4:
+                $accounts = $accQuery->where('account_manager', '=', $this->id)
+                            ->get();
+                break;
+        }
+        $accountsAray['all'] =  count($accounts);
+        $accountsAray['closed'] = count(array_filter($accounts->toArray(), function ($var) {
+                                    return ($var['acc_status'] == 'closed');
+                                }));
+        $accountsAray['active'] = count(array_filter($accounts->toArray(), function ($var) {
+            return ($var['acc_status'] == 'active');
+        }));
+        $accountsAray['paused'] = count(array_filter($accounts->toArray(), function ($var) {
+            return ($var['acc_status'] == 'paused');
+        }));
+        return array('accounts' => $accountsAray);
+    }
 }

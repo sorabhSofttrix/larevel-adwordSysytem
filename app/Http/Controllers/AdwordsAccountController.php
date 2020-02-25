@@ -72,46 +72,30 @@ class AdwordsAccountController extends Controller
            $accounts = AdwordsAccount::find($request->id);             
         } else {
             $priority = "'urgent','high','moderate','normal','low'";
-            switch (auth()->user()->Roles()->pluck('id')->first()) {
-                case 1:
-                    $accounts = AdwordsAccount::
+            $accountsQuery = AdwordsAccount::
                         select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
-                        ->where('acc_status','=','active')
-                        ->orderByRaw("FIELD(acc_priority, $priority)")
-                        ->get();
+                        ->where('acc_status','!=','requiredSetup');
+            switch (auth()->user()->Roles()->pluck('id')->first()) {
+                case 1:
+                    $accounts = $accountsQuery->orderByRaw("FIELD(acc_priority, $priority)")->get();
                     break;
                 case 2:
                     $id= [];
                     $ids = User::select('id')->where('parent_id', '=', auth()->user()->id)->get()->toArray();
                     foreach ($ids as $key => $value) { $id[] = $value['id']; }
-                    $accounts = AdwordsAccount::
-                            select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
-                            ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
-                            ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
-                            ->where('acc_status','=','active')
-                            ->whereIn('account_director', $id)
+                    $accounts = $accountsQuery->whereIn('account_director', $id)
                             ->orderByRaw("FIELD(acc_priority, $priority)")
                             ->get();
                     break;
                 case 3:
-                    $accounts = AdwordsAccount::
-                        select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
-                        ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
-                        ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
-                        ->where('account_director', '=', auth()->user()->id)
-                        ->where('acc_status','=','active')
+                    $accounts = $accountsQuery->where('account_director', '=', auth()->user()->id)
                         ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
                 case 4:
-                    $accounts = AdwordsAccount::
-                        select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
-                        ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
-                        ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
-                        ->where('account_manager', '=', auth()->user()->id)
-                        ->where('acc_status','=','active')
+                    $accounts = $accountsQuery->where('account_manager', '=', auth()->user()->id)
                         ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;

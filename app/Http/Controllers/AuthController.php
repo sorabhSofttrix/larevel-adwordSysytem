@@ -301,11 +301,14 @@ class AuthController extends Controller
      */
     protected function respondWithToken($token)
     {
+        $user = auth()->user();
+        $crtuser = $this->userObject($user);
+        $crtuser['dashboard'] = $user->dashboardData();
         $data = array(
                     'access_token' => $token,
                     'token_type' => 'bearer',
                     'expires_in' => auth()->factory()->getTTL() * 60,
-                    'user' => $this->userObject(auth()->user()),
+                    'user' => $crtuser,
                 );
         return response()->json(getResponseObject(true, $data , 200, ''), 200);
     }
@@ -334,6 +337,7 @@ class AuthController extends Controller
                 "avatar"=> str_replace("localhost","localhost:8000",$user->getFirstMediaUrl('avatars')),
                 "children" => [],
                 "parent" => null,
+                "dashboard" => $user->dashboardData(),
             );
         } else {
             return array();

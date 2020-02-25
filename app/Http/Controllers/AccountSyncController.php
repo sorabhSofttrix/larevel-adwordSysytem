@@ -3,14 +3,18 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+
 use App\AccountSync;
 use App\AdwordsAccount;
 use App\PerformanceReport;
 use App\Alert;
 use App\User;
+use App\AccountIssue;
+
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AlertMail;
 use App\Mail\PendingAlertMail;
+
 use Validator;
 use Excel;
 
@@ -36,9 +40,13 @@ use Google\AdsApi\AdWords\ReportSettingsBuilder;
 use Google\AdsApi\AdWords\v201809\cm\Predicate;
 use Google\AdsApi\AdWords\v201809\cm\PredicateOperator;
 
+
+use Exception;
+use Google\AdsApi\AdWords\v201809\cm\ApplicationException;
+
 class AccountSyncController extends Controller
 {
-    const PAGE_LIMIT = 100;
+    const PAGE_LIMIT = 500;
     const MAIN_ACCOUNT = '628-683-0853';
 	/**
      * Create a new AuthController instance.
@@ -76,7 +84,10 @@ class AccountSyncController extends Controller
         $allAccounts = AdwordsAccount::select('adwords_accounts.*','director.email as director_email','manager.email as manager_email')
             ->leftJoin('users as manager','adwords_accounts.account_manager','manager.id')
             ->leftJoin('users as director','adwords_accounts.account_director','director.id')
-            ->where('acc_status','=','active')->get();
+            ->where('acc_status','=','active')
+            ->where('have_issue','=','false')
+            ->orderByRaw("FIELD(acc_priority, $priority)")
+            ->get();
         /* report selector */
         $reportSelector = new Selector();
         $reportSelector->setFields(
@@ -101,115 +112,136 @@ class AccountSyncController extends Controller
         /* report sessions */
 
         foreach($allAccounts as $account) {
-            $reportSession = $adWordsSessionBuilder->withClientCustomerId($account->g_acc_id)->build();
-            $reportDownloader = new ReportDownloader($reportSession);
-            $reportSettingsOverride = (new ReportSettingsBuilder())->includeZeroImpressions(false)->build();
-            $reportDownloadResult = $reportDownloader->downloadReport(
-                $reportDefinition,
-                $reportSettingsOverride
-            );
-            $json = json_encode(
-                simplexml_load_string($reportDownloadResult->getAsString())
-            );
-            $resultTable = json_decode($json, true)['table'];
-            $collectedRows = collect([]);
-            if (array_key_exists('row', $resultTable)) {
-                $row = $resultTable['row'];
-                $row = count($row) > 1 ? $row : [$row];
-                $collectedRows =collect($row);
+            $worked = false;
+            $resultTable;
+            try{
+                $reportSession = $adWordsSessionBuilder->withClientCustomerId($account->g_acc_id)->build();
+                $reportDownloader = new ReportDownloader($reportSession);
+                $reportSettingsOverride = (new ReportSettingsBuilder())->includeZeroImpressions(false)->build();
+                $reportDownloadResult = $reportDownloader->downloadReport(
+                    $reportDefinition,
+                    $reportSettingsOverride
+                );
+                $json = json_encode(
+                    simplexml_load_string($reportDownloadResult->getAsString())
+                );
+                $resultTable = json_decode($json, true)['table'];
+                $worked = true;
+            } catch(Exception $excp) {
+                if($excp instanceof ApplicationException) {
+                    $excpError = $serialized_array = serialize($excp->getErrors());
+                    AccountIssue::create(
+                      array(
+                        'acc_id' => $account->id,
+                        'error' => $excpError,
+                      )
+                    );
+                    $account->have_issue = true;
+                    $account->save();
+                }
             }
-            $fetchedData = $collectedRows[0]['@attributes'];
-            $performanceData = array(
-                'acc_id' => $account->id,
-                'g_id' => $account->g_acc_id,
-                'report_type' => 'LAST_7_DAYS',
-                'cpa' => convertToFloat($fetchedData['costConv'] / 1000000),
-                'conversion' => $fetchedData['conversions'],
-                'totalConversion' => $fetchedData['totalConvValue'],
-                'cost' => ''. convertToFloat($fetchedData['cost'] / 1000000),
-                'cpc' => convertToFloat($fetchedData['avgCPC'] / 1000000),
-                'impressions' => $fetchedData['impressions'],
-                'click' => $fetchedData['clicks'],
-                'ctr' => convertToFloat(str_replace('%', '', $fetchedData['ctr'])),
-            );
-            $performanceRecord = PerformanceReport::create(
-                $performanceData
-            );
-            $alertData = [];
-            if(convertToFloat($account->cpa) < convertToFloat($performanceData['cpa']) ) {
-                $alertData[] =  getAlertBody( convertToFloat($account->cpa), convertToFloat($performanceData['cpa']), 
-                convertToFloat( convertToFloat($performanceData['cpa']) - convertToFloat($account->cpa) ),
-                    'High CPA', '', '');
-            }
-
-            if(convertToFloat($account->cpc) < convertToFloat($performanceData['cpc']) ) {
-                $alertData[] = getAlertBody( convertToFloat($account->cpc),
-                convertToFloat($performanceData['cpc']), 
-                convertToFloat( convertToFloat($performanceData['cpc']) - convertToFloat($account->cpc) ),
-                'High CPC', '', '');
-            }
-
-            if(convertToFloat($account->ctr) > convertToFloat($performanceData['ctr']) ) {
-                $alertData[] = getAlertBody( convertToFloat($account->ctr),
-                convertToFloat($performanceData['ctr']), 
-                convertToFloat(convertToFloat($performanceData['ctr'] - convertToFloat($account->ctr))),
-                'Low CTR', '', '');
-            }
-
-            if((int) $account->conversion > (int) $performanceData['conversion']) {
-                $alertData[] = getAlertBody(
-                    (int)$account['conversion'], (int)$performanceData['conversion'], 
-                    (int)$performanceData['conversion'] - (int)$account->conversion ,
-                    'Low Conversions', '', '');
-            }
-
-            if((float) $account->totalConversion > (float)$performanceData['totalConversion'] ) {
-                $alertData[] = getAlertBody(
-                    (float) $account->totalConversion, (float)$performanceData['totalConversion'], 
-                    convertToFloat((float)$performanceData['totalConversion'] - (float) $account->totalConversion),
-                    'Low ConversionsValue', '', '');
-            }
-
-            if(convertToFloat( $account->cost) > convertToFloat($performanceData['cost']) ) {
-                $alertData[] = getAlertBody( 
-                    convertToFloat($account->cost), convertToFloat($performanceData['cost']), 
-                    convertToFloat( convertToFloat($performanceData['cost']) - convertToFloat($account->cost) ),
-                    'Low Cost', '', '');
-            }
-
-            if((int) $account->impressions > (int) $performanceData['impressions']) {
-                $alertData[] = getAlertBody(
-                    (int)$account['impressions'], (int)$performanceData['impressions'], 
-                    (int)$performanceData['impressions'] - (int)$account->impressions ,
-                    'Low Impressions', '', '');
-            }
-
-            if((int) $account->click > (int) $performanceData['click']) {
-                $alertData[] = getAlertBody(
-                    (int)$account['click'], (int)$performanceData['click'], 
-                    (int)$performanceData['click'] - (int)$account->click,
-                    'Low Clicks', '', '');
-            }
-            if(count($alertData)) {
-                $account->cpa = $performanceData['cpa'];
-                $account->cpc = $performanceData['cpc'];
-                $account->conversion = $performanceData['conversion'];
-                $account->totalConversion = $performanceData['totalConversion'];
-                $account->cost = $performanceData['cost'];
-                $account->impressions = $performanceData['impressions'];
-                $account->click = $performanceData['click'];
-                $account->ctr = $performanceData['ctr'];
-                $account->save();
-                $alertData = array(
+            if($worked) {
+                $collectedRows = collect([]);
+                if (array_key_exists('row', $resultTable)) {
+                    $row = $resultTable['row'];
+                    $row = count($row) > 1 ? $row : [$row];
+                    $collectedRows =collect($row);
+                }
+                $fetchedData = $collectedRows[0]['@attributes'];
+                $performanceData = array(
                     'acc_id' => $account->id,
                     'g_id' => $account->g_acc_id,
                     'report_type' => 'LAST_7_DAYS',
-                    'alerts' => $alertData,
+                    'cpa' => convertToFloat($fetchedData['costConv'] / 1000000),
+                    'conversion' => $fetchedData['conversions'],
+                    'totalConversion' => $fetchedData['totalConvValue'],
+                    'cost' => ''. convertToFloat($fetchedData['cost'] / 1000000),
+                    'cpc' => convertToFloat($fetchedData['avgCPC'] / 1000000),
+                    'impressions' => $fetchedData['impressions'],
+                    'click' => $fetchedData['clicks'],
+                    'ctr' => convertToFloat(str_replace('%', '', $fetchedData['ctr'])),
                 );
-                $alertRecord = Alert::Create($alertData);
-                Mail::to($account->manager_email)
-                      ->cc($account->director_email)
-                      ->queue(new AlertMail($alertData));
+                $performanceRecord = PerformanceReport::create(
+                    $performanceData
+                );
+                $alertData = [];
+                if(convertToFloat($account->cpa) < convertToFloat($performanceData['cpa']) ) {
+                    $alertData[] =  getAlertBody( convertToFloat($account->cpa), convertToFloat($performanceData['cpa']), 
+                    convertToFloat( convertToFloat($performanceData['cpa']) - convertToFloat($account->cpa) ),
+                        'High CPA', '', '');
+                }
+
+                if(convertToFloat($account->cpc) < convertToFloat($performanceData['cpc']) ) {
+                    $alertData[] = getAlertBody( convertToFloat($account->cpc),
+                    convertToFloat($performanceData['cpc']), 
+                    convertToFloat( convertToFloat($performanceData['cpc']) - convertToFloat($account->cpc) ),
+                    'High CPC', '', '');
+                }
+
+                if(convertToFloat($account->ctr) > convertToFloat($performanceData['ctr']) ) {
+                    $alertData[] = getAlertBody( convertToFloat($account->ctr),
+                    convertToFloat($performanceData['ctr']), 
+                    convertToFloat(convertToFloat($performanceData['ctr'] - convertToFloat($account->ctr))),
+                    'Low CTR', '', '');
+                }
+
+                if((int) $account->conversion > (int) $performanceData['conversion']) {
+                    $alertData[] = getAlertBody(
+                        (int)$account['conversion'], (int)$performanceData['conversion'], 
+                        (int)$performanceData['conversion'] - (int)$account->conversion ,
+                        'Low Conversions', '', '');
+                }
+
+                if((float) $account->totalConversion > (float)$performanceData['totalConversion'] ) {
+                    $alertData[] = getAlertBody(
+                        (float) $account->totalConversion, (float)$performanceData['totalConversion'], 
+                        convertToFloat((float)$performanceData['totalConversion'] - (float) $account->totalConversion),
+                        'Low ConversionsValue', '', '');
+                }
+
+                $costDiff = (float)$performanceData['cost'] - (float)$account->cost;
+                if($costDiff > 10 || $costDiff < -10) {
+                    $costTitle = ($costDiff > 10) ? 'High Cost' : ($costDiff < -10) ? 'Low Cost' : '';
+                    $alertData[] = getAlertBody(
+                        convertToFloat($account->cost), convertToFloat($performanceData['cost']), 
+                        convertToFloat($costDiff),
+                        $costTitle, '', '');
+                }
+
+                if((int) $account->impressions > (int) $performanceData['impressions']) {
+                    $alertData[] = getAlertBody(
+                        (int)$account['impressions'], (int)$performanceData['impressions'], 
+                        (int)$performanceData['impressions'] - (int)$account->impressions ,
+                        'Low Impressions', '', '');
+                }
+
+                if((int) $account->click > (int) $performanceData['click']) {
+                    $alertData[] = getAlertBody(
+                        (int)$account['click'], (int)$performanceData['click'], 
+                        (int)$performanceData['click'] - (int)$account->click,
+                        'Low Clicks', '', '');
+                }
+                if(count($alertData)) {
+                    $account->cpa = $performanceData['cpa'];
+                    $account->cpc = $performanceData['cpc'];
+                    $account->conversion = $performanceData['conversion'];
+                    $account->totalConversion = $performanceData['totalConversion'];
+                    $account->cost = $performanceData['cost'];
+                    $account->impressions = $performanceData['impressions'];
+                    $account->click = $performanceData['click'];
+                    $account->ctr = $performanceData['ctr'];
+                    $account->save();
+                    $alertData = array(
+                        'acc_id' => $account->id,
+                        'g_id' => $account->g_acc_id,
+                        'report_type' => 'LAST_7_DAYS',
+                        'alerts' => $alertData,
+                    );
+                    $alertRecord = Alert::Create($alertData);
+                    Mail::to($account->manager_email)
+                        ->cc($account->director_email)
+                        ->queue(new AlertMail($alertData));
+                }
             }
         }
 
@@ -247,12 +279,12 @@ class AccountSyncController extends Controller
         $selector->setOrdering([new OrderBy('CustomerId', SortOrder::ASCENDING)]);
         $selector->setPaging(new Paging(0, self::PAGE_LIMIT));
 
-        // Use a predicate to filter out paused criteria (this is optional).
-        if($lastAccountId) {
-            $selector->setPredicates(
-                [ new Predicate('CustomerId', PredicateOperator::GREATER_THAN, [$lastAccountId]) ]
-            );
-        }
+        // Use a predicate .
+        // if($lastAccountId) {
+        //     $selector->setPredicates(
+        //         [ new Predicate('CustomerId', PredicateOperator::GREATER_THAN, [$lastAccountId]) ]
+        //     );
+        // }
 
         // Maps from customer IDs to accounts and links.
         $customerIdsToAccounts = [];

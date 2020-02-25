@@ -70,7 +70,8 @@ class AdwordsAccountController extends Controller
         $accounts = [];
         if(isset($request['id']) && $request->id) {
            $accounts = AdwordsAccount::find($request->id);             
-        } else {  
+        } else {
+            $priority = "'urgent','high','moderate','normal','low'";
             switch (auth()->user()->Roles()->pluck('id')->first()) {
                 case 1:
                     $accounts = AdwordsAccount::
@@ -78,6 +79,7 @@ class AdwordsAccountController extends Controller
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->where('acc_status','=','active')
+                        ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
                 case 2:
@@ -90,6 +92,7 @@ class AdwordsAccountController extends Controller
                             ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                             ->where('acc_status','=','active')
                             ->whereIn('account_director', $id)
+                            ->orderByRaw("FIELD(acc_priority, $priority)")
                             ->get();
                     break;
                 case 3:
@@ -99,6 +102,7 @@ class AdwordsAccountController extends Controller
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->where('account_director', '=', auth()->user()->id)
                         ->where('acc_status','=','active')
+                        ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
                 case 4:
@@ -108,6 +112,7 @@ class AdwordsAccountController extends Controller
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->where('account_manager', '=', auth()->user()->id)
                         ->where('acc_status','=','active')
+                        ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
                 default:

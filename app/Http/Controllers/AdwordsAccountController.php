@@ -77,25 +77,26 @@ class AdwordsAccountController extends Controller
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->where('acc_status','!=','requiredSetup');
-            switch (auth()->user()->Roles()->pluck('id')->first()) {
+            $curntUser = (isset($request['userid'])) ? User::find($request->userid) : auth()->user();
+            switch ($curntUser->Roles()->pluck('id')->first()) {
                 case 1:
                     $accounts = $accountsQuery->orderByRaw("FIELD(acc_priority, $priority)")->get();
                     break;
                 case 2:
                     $id= [];
-                    $ids = User::select('id')->where('parent_id', '=', auth()->user()->id)->get()->toArray();
+                    $ids = User::select('id')->where('parent_id', '=', $curntUser->id)->get()->toArray();
                     foreach ($ids as $key => $value) { $id[] = $value['id']; }
                     $accounts = $accountsQuery->whereIn('account_director', $id)
                             ->orderByRaw("FIELD(acc_priority, $priority)")
                             ->get();
                     break;
                 case 3:
-                    $accounts = $accountsQuery->where('account_director', '=', auth()->user()->id)
+                    $accounts = $accountsQuery->where('account_director', '=', $curntUser->id)
                         ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
                 case 4:
-                    $accounts = $accountsQuery->where('account_manager', '=', auth()->user()->id)
+                    $accounts = $accountsQuery->where('account_manager', '=', $curntUser->id)
                         ->orderByRaw("FIELD(acc_priority, $priority)")
                         ->get();
                     break;
@@ -261,11 +262,19 @@ class AdwordsAccountController extends Controller
                     $g_acc->cpc = $request->cpc;
                 }
 
+                /* Changes to account ctr*/
+                if(isset($request['ctr']) && $request->ctr != $g_acc->ctr) {
+                    $changes[] = changeHistoryField('ctr', 'Account CTR', $g_acc->cpc, $request->ctr, 'Account CTR changed from `'.$g_acc->ctr.'` to `'.$request->ctr.'`');
+                    $g_acc->ctr = $request->ctr;
+                }
+
                 /* Changes to account totalConversion*/
                 if(isset($request['totalConversion']) && $request->totalConversion != $g_acc->totalConversion) {
                     $changes[] = changeHistoryField('cpc', 'Account Total Conversion', $g_acc->totalConversion, $request->totalConversion, 'Account Total Conversion changed from `'.$g_acc->cpc.'` to `'.$request->totalConversion.'`');
                     $g_acc->totalConversion = $request->totalConversion;
                 }
+
+
 
                 /*  Changes to Cron time  */
                 if(isset($request['cron_time']) && $request->cron_time != $g_acc->cron_time) {
@@ -358,7 +367,7 @@ class AdwordsAccountController extends Controller
             /* Changes to account director/manager */ 
             $user = User::find($request->account_manager);
             if($user->Roles()->pluck('id')->first() != '4' || $user->parent_id != $request->account_director) {
-            return response()->json(
+                return response()->json(
                     getResponseObject(false, '', 400, 'Account Manager and Account Director isn`t connected'), 400);
             } else {
                 $ids = explode(',',$request->account_ids);
@@ -368,8 +377,27 @@ class AdwordsAccountController extends Controller
                                     'account_manager' => $request->account_manager,
                                     'acc_status' => 'active'
                             ]);
+                $changes = [];
+                foreach($ids as $acc_id) {
+                    $ch = array();
+                    $ch[] = changeHistoryField('account_director', 'Account Director', 0, $request->account_director, 'Account Director is changed');
+                    $ch[] = changeHistoryField('account_manager', 'Account Manager', 0, $request->account_manager, 'Account manager is changed');
+                    $ch[] = changeHistoryField('acc_status', 'Account Status', 'requiredSetup', 'active', 'Account Status changed from `requiredSetup` to `active`');
+                    $changes[] = array( 
+                                    'acc_id' => $acc_id, 
+                                    'add_by' => auth()->user()->id, 
+                                    'changes'=> $ch,
+                                    'created_at' => date('Y-m-d H:i:s'),
+                                    'updated_at' => date('Y-m-d H:i:s')
+                                );
+                    AccountChangeHistory::create(array( 
+                        'acc_id' => $acc_id, 
+                        'add_by' => auth()->user()->id, 
+                        'changes'=> $ch
+                    ));
+                }
                 return response()->json(
-                    getResponseObject(true, 'accounts updated', 200, '')
+                    getResponseObject(true, 'Account assigned successfully', 200, '')
                     , 200);
             }
         }

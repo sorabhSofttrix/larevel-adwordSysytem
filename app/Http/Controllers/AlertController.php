@@ -61,14 +61,14 @@ class AlertController extends Controller
                     ->whereIn('alerts.acc_id', $accountsIds)
                     ->where('alerts.status','=', 'open')
                     ->get();
-            if($alerts != null) {
+            if(count($alerts)) {
                 return response()->json(
                         getResponseObject(true, $alerts, 200, '')
                         , 200);
             } else {
                 return response()->json(
-                        getResponseObject(false, '', 400, 'No Alerts Found')
-                        , 400);
+                        getResponseObject(false, array(), 200, 'No Alerts Found')
+                        , 200);
             }
         } else {
             return response()->json(
@@ -152,8 +152,8 @@ class AlertController extends Controller
                         , 200);
             } else {
                 return response()->json(
-                        getResponseObject(false, '', 400, 'No Alerts Found')
-                        , 400);
+                        getResponseObject(false, array(), 200, 'No Alerts Found')
+                        , 200);
             }
         } else {
             return response()->json(

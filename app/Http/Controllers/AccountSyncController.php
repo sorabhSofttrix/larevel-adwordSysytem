@@ -75,6 +75,7 @@ class AccountSyncController extends Controller
         AdWordsServices $adWordsServices,
         AdWordsSessionBuilder $adWordsSessionBuilder
     ) {
+        $priority = "'urgent','high','moderate','normal','low'";
         $clientCustomerId = self::MAIN_ACCOUNT;
         $session =
             $adWordsSessionBuilder->fromFile(realpath(base_path('adsapi_php.ini')))

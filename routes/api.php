@@ -35,4 +35,9 @@ Route::group([
     Route::get('get-dashboard-alerts', 'AlertController@getAllAlertsForDashboard');
     Route::get('get-alerts-count', 'AlertController@getAlertsCountForDashboard');
     Route::post('update-alert', 'AlertController@updateAlert');  
+
+
+    Route::get('account-status-summary', 'AccountChangeHistoryController@getAccountMonthlyStatusSummary');
+    Route::post('account-dated-status', 'AccountChangeHistoryController@getAccountsInDateRange');
+    Route::get('account-dated-status', 'AccountChangeHistoryController@getAccountsInDateRange');
 });

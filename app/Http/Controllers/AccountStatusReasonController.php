@@ -72,8 +72,10 @@ class AccountStatusReasonController extends Controller
         }
     }
 
-    public function getAllResasonsList(){
-        $reasons = AccountStatusReason::orderBy('sortOrder')->where('is_active',true)->get();
+    public function getAllResasonsList(Request $request){
+        $reasons = (isset($request['id'])) ? 
+            AccountStatusReason::where('id',$request->id)->where('is_active',true)->get()
+            : AccountStatusReason::orderBy('sortOrder')->where('is_active',true)->get();
         return response()->json(
             getResponseObject(true, $reasons , 200, '')
             , 200);

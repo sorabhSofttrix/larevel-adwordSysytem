@@ -10,7 +10,7 @@ use App\User;
 class AccountChangeHistoryController extends Controller
 {
     /**
-     * Create a new AuthController instance.
+     * Create a new  instance.
      *
      * @return void
      */

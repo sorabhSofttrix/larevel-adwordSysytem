@@ -40,4 +40,13 @@ Route::group([
     Route::get('account-status-summary', 'AccountChangeHistoryController@getAccountMonthlyStatusSummary');
     Route::post('account-dated-status', 'AccountChangeHistoryController@getAccountsInDateRange');
     Route::get('account-dated-status', 'AccountChangeHistoryController@getAccountsInDateRange');
+    
+    
+    Route::post('add-reason', 'AccountStatusReasonController@addNewReasonInList');
+    Route::get('get-reasons', 'AccountStatusReasonController@getAllResasonsList');
+    Route::delete('delete-reason', 'AccountStatusReasonController@deleteResasonsFromList');
+    Route::get('delete-reason', 'AccountStatusReasonController@deleteResasonsFromList');
+
+    
+    
 });

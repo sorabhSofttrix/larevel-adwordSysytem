@@ -20,7 +20,13 @@ class AdwordsAccount extends Model
     *
     */
     public function history() {
-        $history = $this->hasMany('App\AccountChangeHistory', 'acc_id')->get();
+        $history = $this->hasMany('App\AccountChangeHistory', 'acc_id')
+                    ->select('account_change_histories.*', 
+                             'ascs.reason_id','ascs.comment','ascs.up_comments','ascs.rating','ascs.id as ascs_id',
+                             'asrs.title as reason_text')
+                    ->leftJoin('account_status_changes as ascs','account_change_histories.id','ascs.history_id')
+                    ->leftJoin('account_status_reasons as asrs','ascs.reason_id','asrs.id')
+                    ->get();
         $allUserId = [];
         foreach ($history as $key => $value) { $allUserId[] = $value['add_by']; }
         $allUsers = User::select('id','name')->whereIn('id', $allUserId)->get();

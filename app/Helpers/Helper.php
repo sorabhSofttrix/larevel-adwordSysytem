@@ -26,8 +26,12 @@ if (!function_exists('changeHistoryField')) {
      *
      * @return array
      */
-    function changeHistoryField($field, $fieldName, $oldValue, $newValue, $desc = ''){
-        return array('field' => $field, 'filed_name' => $fieldName, 'old_value' => $oldValue, 'new_value' => $newValue, 'desc' => $desc);
+    function changeHistoryField($field, $fieldName, $oldValue, $newValue, $desc = '', $reason_id =''){
+        return array(
+                     'field' => $field, 'filed_name' => $fieldName, 
+                     'old_value' => $oldValue, 'new_value' => $newValue, 'desc' => $desc,
+                     'reason_id' => $reason_id,
+              );
     }
 }
 

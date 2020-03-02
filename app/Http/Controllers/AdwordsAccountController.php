@@ -6,11 +6,13 @@ use App\AdwordsAccount;
 use Illuminate\Http\Request;
 use App\User;
 use App\AccountChangeHistory;
+use App\AccountStatusChange;
 use Illuminate\Support\Facades\DB;
 use Validator;
 
 class AdwordsAccountController extends Controller
 {
+    public $closePaused = ['closed', 'paused'];
     /**
      * Create a new AuthController instance.
      *
@@ -58,8 +60,30 @@ class AdwordsAccountController extends Controller
                     , 400);
         }
     }
-    
 
+    public function getLastAccountChanges($id, $acc_status) {
+        $status_array = array(
+            'ascs_id' => null,
+            'reason_id' => null,
+            'comment' => null,
+            'up_comments' => null,
+            'rating' => null,
+       );
+       $account_status = AccountStatusChange::where('acc_id',$id)
+                        ->where('new_value',$acc_status)
+                        ->orderBy('id', 'DESC')->first();
+       if($account_status) {
+        $status_array= array(
+            'ascs_id' => $account_status->id,
+            'reason_id' => $account_status->reason_id,
+            'comment' => $account_status->comment,
+            'up_comments' => $account_status->up_comments,
+            'rating' => $account_status->rating,
+        );
+       }
+       return $status_array;
+    }
+    
     /**
      * get a all Adwords Account.
      *
@@ -69,7 +93,9 @@ class AdwordsAccountController extends Controller
     {
         $accounts = [];
         if(isset($request['id']) && $request->id) {
-           $accounts = AdwordsAccount::find($request->id);             
+           $accounts = AdwordsAccount::find($request->id);
+           $status_array = $this->getLastAccountChanges($accounts->id, $accounts->acc_status);
+           $accounts = array_merge($accounts->toArray(), $status_array);
         } else {
             $priority = "'urgent','high','moderate','normal','low'";
             $accountsQuery = AdwordsAccount::
@@ -196,8 +222,68 @@ class AdwordsAccountController extends Controller
                     , 400);
         } else {
             $changes = array();
+            $acc_status_changes = array();
+            $user = auth()->user();
             $g_acc = AdwordsAccount::find($request->id);
+            $account_status = AccountStatusChange::where('acc_id',$g_acc->id)
+                            ->where('new_value',$g_acc->acc_status)
+                            ->orderBy('id', 'DESC')->first();
             if($g_acc  && $g_acc->g_acc_id == $request->g_acc_id) {
+
+                /* Changes to account acc_status*/
+
+                if(isset($request['acc_status']) && $request->acc_status != $g_acc->acc_status) {
+                    if(in_array($request->acc_status, $this->closePaused)) {
+                        $acc_status_validator = [
+                            'reason_id' => 'required|exists:account_status_reasons,id',
+                            'comment' => 'required',
+                            'up_comments' => '',
+                            'rating' => '',
+                        ];
+                        $validatedStatusData = Validator::make($request->all(), $acc_status_validator);
+                        if($validatedStatusData->fails()) {
+                            return response()->json(
+                                getResponseObject(false, array(), 400, $validatedStatusData->errors()->first())
+                                , 400);
+                        }
+                    }
+                    $changes[] = changeHistoryField('acc_status', 'Account Status', $g_acc->acc_status, $request->acc_status, 'Account Status changed from `'.$g_acc->acc_status.'` to `'.$request->acc_status.'`');
+                    $acc_status_changes = array(
+                        'add_by' => $user->id,
+                        'new_value' => $request->acc_status,
+                        'old_value' => $g_acc->acc_status,
+                        'reason_id' => $request->reason_id,
+                        'comment' => $request->comment,
+                        'up_comments' => $request->up_comments,
+                        'rating' => $request->rating,
+                        'acc_id' => $g_acc->id,
+                    );
+                    $g_acc->acc_status = $request->acc_status;
+                } else {
+                    if($account_status->id == $request->ascs_id) {
+
+                        /* Changes to paused/closed reason */ 
+                        if(isset($request['reason_id']) && $request->reason_id != $account_status->reason_id) {
+                            $account_status->reason_id = $request->reason_id;
+                        }
+
+                        /* Changes to paused/closed comment */ 
+                        if(isset($request['comment']) && $request->comment != $account_status->comment) {
+                            $account_status->comment = $request->comment;
+                        }
+
+                        /* Changes to paused/closed up_comments */ 
+                        if(isset($request['up_comments']) && $request->up_comments != $account_status->up_comments) {
+                            $account_status->up_comments = $request->up_comments;
+                        }
+
+                        /* Changes to paused/closed rating */ 
+                        if(isset($request['rating']) && $request->rating != $account_status->rating) {
+                            $account_status->rating = $request->rating;
+                        }
+                        $account_status->save();
+                    }
+                }
                 
                 /* Changes to account name*/ 
 
@@ -239,13 +325,6 @@ class AdwordsAccountController extends Controller
                 if(isset($request['click']) && $request->click != $g_acc->click) {
                     $changes[] = changeHistoryField('click', 'Account Clicks', $g_acc->click, $request->click, 'Account Clicks changed from `'.$g_acc->click.'` to `'.$request->click.'`');
                     $g_acc->click = $request->click;
-                }
-
-                /* Changes to account acc_status*/
-
-                if(isset($request['acc_status']) && $request->acc_status != $g_acc->acc_status) {
-                    $changes[] = changeHistoryField('acc_status', 'Account Status', $g_acc->acc_status, $request->acc_status, 'Account Status changed from `'.$g_acc->acc_status.'` to `'.$request->acc_status.'`');
-                    $g_acc->acc_status = $request->acc_status;
                 }
 
                 /* Changes to account conversion*/
@@ -315,9 +394,14 @@ class AdwordsAccountController extends Controller
                         'add_by' => auth()->user()->id, 
                         'changes' => $changes, 
                     ]);
+                    $acc_status_changes['history_id'] = $history->id;
+                    $acc_status_change_record = AccountStatusChange::create(
+                        $acc_status_changes
+                    );
                 }
+                $status_g_array = $this->getLastAccountChanges($g_acc->id, $g_acc->acc_status);
                 return response()->json(
-                    getResponseObject(true, $g_acc, 200, '')
+                    getResponseObject(true, array_merge($g_acc->toArray(), $status_g_array), 200, '')
                     , 200);
             }else {
                 return response()->json(
@@ -370,6 +454,7 @@ class AdwordsAccountController extends Controller
                 return response()->json(
                     getResponseObject(false, '', 400, 'Account Manager and Account Director isn`t connected'), 400);
             } else {
+                $currentUser = auth()->user();
                 $ids = explode(',',$request->account_ids);
                 $account = AdwordsAccount::whereIn('id',$ids)
                             ->update([
@@ -385,15 +470,26 @@ class AdwordsAccountController extends Controller
                     $ch[] = changeHistoryField('acc_status', 'Account Status', 'requiredSetup', 'active', 'Account Status changed from `requiredSetup` to `active`');
                     $changes[] = array( 
                                     'acc_id' => $acc_id, 
-                                    'add_by' => auth()->user()->id, 
+                                    'add_by' => $currentUser->id, 
                                     'changes'=> $ch,
                                     'created_at' => date('Y-m-d H:i:s'),
                                     'updated_at' => date('Y-m-d H:i:s')
                                 );
-                    AccountChangeHistory::create(array( 
+                    $history = AccountChangeHistory::create(array( 
                         'acc_id' => $acc_id, 
-                        'add_by' => auth()->user()->id, 
+                        'add_by' => $currentUser->id, 
                         'changes'=> $ch
+                    ));
+                    AccountStatusChange::create(array(
+                        'add_by' => $currentUser->id,
+                        'new_value' => 'active',
+                        'old_value' => 'requiredSetup',
+                        'reason_id' => null,
+                        'comment' => null,
+                        'up_comments' => null,
+                        'rating' => null,
+                        'acc_id' => $acc_id,
+                        'history_id' => $history->id,
                     ));
                 }
                 return response()->json(

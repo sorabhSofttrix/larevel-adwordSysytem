@@ -48,5 +48,20 @@ Route::group([
     Route::get('delete-reason', 'AccountStatusReasonController@deleteResasonsFromList');
 
     
-    
+    // profile routes
+    Route::post('add-profile', 'ProfileController@add');
+    Route::post('update-profile', 'ProfileController@update');
+    Route::get('get-profiles', 'ProfileController@get');
+    Route::get('delete-profile', 'ProfileController@delete');
+
+    // Client routes
+    Route::post('add-client', 'ClientController@add');
+    Route::post('update-client', 'ClientController@update');
+    Route::get('get-clients', 'ClientController@get');
+    Route::get('delete-client', 'ClientController@delete');
+
+    // Projects
+    Route::post('add-project', 'ProjectController@add');
+    Route::get('get-projects', 'ProjectController@get');
+
 });

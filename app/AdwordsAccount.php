@@ -28,15 +28,21 @@ class AdwordsAccount extends Model
                     ->leftJoin('account_status_reasons as asrs','ascs.reason_id','asrs.id')
                     ->get();
         $allUserId = [];
-        foreach ($history as $key => $value) { $allUserId[] = $value['add_by']; }
-        $allUsers = User::select('id','name')->whereIn('id', $allUserId)->get();
         foreach ($history as $key => $value) {
-        	$searchedValue = $value['add_by'];
-        	$users = array_reduce($allUsers->toArray(), function ($result, $item) use ($searchedValue) {
-        		return $item['id'] == $searchedValue ? $item : $result;});
-        	$history[$key]['user'] = $users;
+          $allUserId[] = $value['add_by'];
+          $changes = $value['changes'];
+          $fieldArray = array('account_director','account_manager');
+          foreach($changes as $change) {
+            if(in_array($change['field'], $fieldArray)) {
+              $allUserId[] = $change['new_value'];
+              $allUserId[] = $change['old_value'];
+            }
+          }
         }
-        return $history;
+        $allUsers = User::select('id','name')->whereIn('id', $allUserId)->get();
+        $finalHistory['data'] = $history;
+        $finalHistory['users'] = $allUsers->toArray(); 
+        return $finalHistory;
     }
 
     public function alerts() {

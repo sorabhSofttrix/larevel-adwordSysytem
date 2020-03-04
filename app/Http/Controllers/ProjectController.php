@@ -30,7 +30,6 @@ class ProjectController extends Controller
     */
     public function add(Request $request) {
         $validationRules = [
-            'project_name' => 'required',
             'sales_person' => 'exists:users,id',
             'profile' => 'exists:profiles,id',
             'client' => 'exists:clients,id',
@@ -284,6 +283,30 @@ class ProjectController extends Controller
             return response()->json(
                 getResponseObject(false, '', 404, 'Project not found')
                 , 404);
+        }
+    }
+
+    public function addComment(Request $request) {
+        $validationRules = [
+            'id' => 'required|exists:projects,id',
+            'comment' => 'required',
+        ];
+        $validatedData = Validator::make($request->all(), $validationRules);
+        if($validatedData->fails()) {
+            return response()->json(
+                getResponseObject(false, array(), 400, $validatedData->errors()->first())
+                , 400);
+        } else {
+            $comment = array(
+                'entity_type' => 'project',
+                'entity_id' => $request->id,
+                'comment' => $request->comment,
+                'add_by' => auth()->user()->id,
+            );
+            AllComment::create($comment);
+            return response()->json(
+                getResponseObject(false, 'comment added', 200, '')
+                , 200);
         }
     }
 }

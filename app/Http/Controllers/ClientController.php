@@ -125,10 +125,9 @@ class ClientController extends Controller
                     , 404);
             }
         } else {
-            $client = Client::where('is_active',true)->get();
             return response()->json(
-                getResponseObject(true, $client, 200, '')
-                , 200);
+                getResponseObject(false, '', 404, 'Client not found')
+                , 404);
         }
     }
 

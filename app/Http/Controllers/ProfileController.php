@@ -134,10 +134,9 @@ class ProfileController extends Controller
                     , 404);
             }
         } else {
-            $profiles = Profile::where('is_active',true)->get();
             return response()->json(
-                getResponseObject(true, $profiles, 200, '')
-                , 200);
+                    getResponseObject(false, '', 404, 'profile not found')
+                    , 404);
         }
     }
 

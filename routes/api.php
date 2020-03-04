@@ -62,6 +62,8 @@ Route::group([
 
     // Projects
     Route::post('add-project', 'ProjectController@add');
+    Route::post('update-project', 'ProjectController@update');
+    Route::get('delete-project', 'ProjectController@delete');
     Route::get('get-projects', 'ProjectController@get');
 
 });

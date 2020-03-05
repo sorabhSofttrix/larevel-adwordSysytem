@@ -7,6 +7,7 @@ use Spatie\MediaLibrary\HasMedia\HasMediaTrait;
 use Spatie\MediaLibrary\HasMedia\HasMedia;
 use Spatie\MediaLibrary\Models\Media;
 use App\AllComment;
+use App\AdwordsAccount;
 
 class Project extends Model implements HasMedia
 {
@@ -23,5 +24,13 @@ class Project extends Model implements HasMedia
                     ->where('entity_type','project')
                     ->where('entity_id',$this->id)
                     ->get();
+    }
+
+    public function accounts() {
+        return AdwordsAccount::select('id','acc_name','g_acc_id','acc_status','project_id')
+                            ->where('acc_status','<>','closed')
+                            ->where('acc_status','<>','paused')
+                            ->where('project_id',$this->id)
+                            ->get();
     }
 }

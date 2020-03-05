@@ -7,8 +7,11 @@ use App\User;
 use App\Profile;
 use App\Client;
 use App\AllComment;
+use App\AdwordsAccount;
+
 use Illuminate\Http\Request;
 use Validator;
+use Exception;
 
 class ProjectController extends Controller
 {
@@ -35,7 +38,6 @@ class ProjectController extends Controller
             'client' => 'exists:clients,id',
             'questionnaire' => 'mimes:txt,doc,docx,odt,ods,xls,xlsx'
         ];
-
         $validatedData = Validator::make($request->all(),$validationRules);
         if($validatedData->fails()) {
             return response()->json(
@@ -87,6 +89,20 @@ class ProjectController extends Controller
                             'add_by' => $user->id,
                         );
                         AllComment::create($comment);
+                    }
+
+                    // add google accounts
+                    if(isset($request->google_accounts)) {
+                        $accounts_g = json_decode($request->google_accounts);
+                        if(count($accounts_g)) {
+                            $account_resp = $this->addAdwordAccounts($accounts_g, $addedProject->id);
+                            if(!$account_resp['status']) {
+                                $proj = $this->getProjects($addedProject->id, false);
+                                return response()->json(
+                                    getResponseObject(false, $proj[0], 200, $account_resp['error'])
+                                    , 200);
+                            }
+                        }
                     }
                     return $this->getProjects($addedProject->id);
                 } else {
@@ -248,7 +264,7 @@ class ProjectController extends Controller
         return $this->getProjects($request['id']);
     }
 
-    public function getProjects($data) {
+    public function getProjects($data, $response=true) {
         $projectQuery = Project::select('projects.*',
                                         'profiles.profile_name',
                                         'client_name','clients.skype','clients.phone','clients.email',
@@ -270,11 +286,18 @@ class ProjectController extends Controller
             foreach($projects as $key => $project) {
                 $projectsArray[$key]['questionnaire'] = getPathWithUrl($projectsArray[$key]['questionnaire']);
                 $projectsArray[$key]['comments'] = $project->comments();
+                $projectsArray[$key]['accounts'] = $project->accounts();
+            }
+            if(!$response) {
+                return $projectsArray;
             }
             return response()->json(
                 getResponseObject(true, $projectsArray, 200, '')
                 , 200);
         } else {
+            if(!$response) {
+                return array();
+            }
             return response()->json(
                 getResponseObject(false, '', 404, 'Project not found')
                 , 404);
@@ -303,5 +326,27 @@ class ProjectController extends Controller
                 getResponseObject(false, 'comment added', 200, '')
                 , 200);
         }
+    }
+
+    public function addAdwordAccounts($data, $project_id) {
+        $accounts = [];
+        foreach($data as $key => $value){
+            $accounts[] = array(
+                'acc_name' => $value->acc_name,
+                'g_acc_id' => $value->g_acc_id,
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+                'project_id' => $project_id,
+                'add_by' => auth()->user()->id,
+            );
+        }
+        if($accounts) {
+            try {
+                AdwordsAccount::insert($accounts);
+            } catch(Exception $excp) {
+                return array('status'=> false, 'error' => 'issue while adding accounts please check');
+            }
+        }
+        return array('status'=> true, 'error' => '');
     }
 }

@@ -212,9 +212,21 @@ class ProjectController extends Controller
                         }
                         $client->save();
                     }
-
                     $update_project->save();
 
+                     // add google accounts
+                     if(isset($request->google_accounts)) {
+                        $accounts_g = json_decode($request->google_accounts);
+                        if(count($accounts_g)) {
+                            $account_resp = $this->addAdwordAccounts($accounts_g, $update_project->id);
+                            if(!$account_resp['status']) {
+                                $proj = $this->getProjects($update_project->id, false);
+                                return response()->json(
+                                    getResponseObject(false, $proj[0], 200, $account_resp['error'])
+                                    , 200);
+                            }
+                        }
+                    }
                     return $this->getProjects($update_project->id);
                 } else {
                     return response()->json(
@@ -286,7 +298,7 @@ class ProjectController extends Controller
             foreach($projects as $key => $project) {
                 $projectsArray[$key]['questionnaire'] = getPathWithUrl($projectsArray[$key]['questionnaire']);
                 $projectsArray[$key]['comments'] = $project->comments();
-                $projectsArray[$key]['accounts'] = $project->accounts();
+                $projectsArray[$key]['google_accounts'] = $project->accounts();
             }
             if(!$response) {
                 return $projectsArray;
@@ -331,14 +343,16 @@ class ProjectController extends Controller
     public function addAdwordAccounts($data, $project_id) {
         $accounts = [];
         foreach($data as $key => $value){
-            $accounts[] = array(
-                'acc_name' => $value->acc_name,
-                'g_acc_id' => $value->g_acc_id,
-                'created_at' => date('Y-m-d H:i:s'),
-                'updated_at' => date('Y-m-d H:i:s'),
-                'project_id' => $project_id,
-                'add_by' => auth()->user()->id,
-            );
+            if($value->acc_name || $value->g_acc_id) {
+                $accounts[] = array(
+                    'acc_name' => $value->acc_name,
+                    'g_acc_id' => $value->g_acc_id,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'updated_at' => date('Y-m-d H:i:s'),
+                    'project_id' => $project_id,
+                    'add_by' => auth()->user()->id,
+                );
+            }
         }
         if($accounts) {
             try {

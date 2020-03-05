@@ -500,15 +500,22 @@ class AdwordsAccountController extends Controller
     }
 
     public function checkIfAccountExist(Request $request) {
-        $account = AdwordsAccount::find($request->g_acc_id);
-        if($account) {
-            return response()->json(
-                getResponseObject(true, 'Account '.$account->g_acc_id.' already exist.', 200, '')
-                , 200);
+        if(isset($request['g_acc_id']) && !empty($request->g_acc_id)) {
+            $account = AdwordsAccount::select('id','g_acc_id','acc_name')
+                    ->where('g_acc_id',$request->g_acc_id)->first();
+            if($account) {
+                return response()->json(
+                    getResponseObject(true, 'Account '.$account->g_acc_id.' already exist.', 200, '')
+                    , 200);
+            } else {
+                return response()->json(
+                    getResponseObject(false, '', 404, 'Account not found.')
+                    , 404);
+            }
         } else {
             return response()->json(
-                getResponseObject(false, '', 404, 'Account not found.')
-                , 404);
+                getResponseObject(false, '', 400, 'AccountID not provided.')
+                , 400);
         }
     }
 }

@@ -63,6 +63,14 @@ class ProjectController extends Controller
                         $addedProject->questionnaire = str_replace("http://localhost","",$addedProject->getFirstMediaUrl('questionnaire'));
                     }
 
+                    //if adding additional_files 
+                    if (isset($request['additional_files'])) {
+                        $addedProject->addMultipleMediaFromRequest(['additional_files'])
+                                    ->each(function ($fileAdder) {
+                                        $fileAdder->toMediaCollection('additional_files');
+                                    });
+                    }
+
                     if(!isset($request['client']) || empty($request->client)) {
                         if(isset($request->client_name) && !empty($request->client_name)) {
                             $client = Client::create(
@@ -177,6 +185,14 @@ class ProjectController extends Controller
                                        ->toMediaCollection('questionnaire');
                         $update_project->save();
                         $update_project->questionnaire = str_replace("http://localhost","",$update_project->getFirstMediaUrl('questionnaire'));
+                    }
+
+                    //if adding additional_files 
+                    if (isset($request['additional_files'])) {
+                        $update_project->addMultipleMediaFromRequest(['additional_files'])
+                                    ->each(function ($fileAdder) {
+                                        $fileAdder->toMediaCollection('additional_files');
+                                    });
                     }
 
                     // if updating client
@@ -299,6 +315,16 @@ class ProjectController extends Controller
                 $projectsArray[$key]['questionnaire'] = getPathWithUrl($projectsArray[$key]['questionnaire']);
                 $projectsArray[$key]['comments'] = $project->comments();
                 $projectsArray[$key]['google_accounts'] = $project->accounts();
+                $projectsArray[$key]['additional_files'] = [];
+                $additionalFiles = $project->getMedia('additional_files');
+                foreach($additionalFiles as $imgKey => $value) {
+                    $projectsArray[$key]['additional_files'][] = array(
+                        'id' => $value->id,
+                        'name' => $value->name,
+                        'file_name' => $value->file_name,
+                        'file_url' => getPathWithUrl(str_replace("http://localhost","",$value->getUrl())),
+                    );
+                }
             }
             if(!$response) {
                 return $projectsArray;
@@ -313,6 +339,30 @@ class ProjectController extends Controller
             return response()->json(
                 getResponseObject(false, '', 404, 'Project not found')
                 , 404);
+        }
+    }
+
+    /**
+     *  Funtion to delete media(s) additional_files from db
+     * 
+     * 
+    */
+    public function deleteAdditionalFile(Request $request) {
+        $validationRules = [
+            'id' => 'required|exists:media,id',
+            'project_id' => 'required|exists:projects,id',
+        ];
+        $validatedData = Validator::make($request->all(), $validationRules);
+        if($validatedData->fails()) {
+            return response()->json(
+                getResponseObject(false, array(), 400, $validatedData->errors()->first())
+                , 400);
+        } else {
+            $project = Project::find($request->project_id);
+            $project->deleteMedia($request->id);
+            return response()->json(
+                getResponseObject(true, 'Media Deleted', 200, '')
+                , 200);
         }
     }
 

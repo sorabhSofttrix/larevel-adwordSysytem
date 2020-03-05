@@ -45,7 +45,6 @@ class ProjectController extends Controller
             $user = auth()->user();
             if($user) {
                 $project = array(
-                    'project_name' => $request->project_name,
                     'contract_start_date' => $request->contract_start_date,
                     'hourly_rate' => $request->hourly_rate,
                     'weekly_limit' => $request->weekly_limit,
@@ -56,6 +55,7 @@ class ProjectController extends Controller
                 );
                 $addedProject = Project::create($project);
                 if($addedProject) {
+                    $addedProject->project_name = generateProjectName($addedProject->id);
                     if (isset($request['questionnaire'])) {
                         $addedProject->addMediaFromRequest('questionnaire')->toMediaCollection('questionnaire');
                         $addedProject->questionnaire = str_replace("http://localhost","",$addedProject->getFirstMediaUrl('questionnaire'));
@@ -126,11 +126,6 @@ class ProjectController extends Controller
             if($user) {
                 $update_project = Project::find($request->id);
                 if($update_project) {
-                    // if changing project_name
-                    if (isset($request['project_name']) && $update_project->project_name != $request->project_name) {
-                        $update_project->project_name = $request->project_name;
-                    }
-
                     // if changing contract_start_date
                     if (isset($request['contract_start_date']) && $update_project->contract_start_date != $request->contract_start_date) {
                         $update_project->contract_start_date = $request->contract_start_date;

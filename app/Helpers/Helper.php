@@ -65,4 +65,11 @@ if (!function_exists('getPathWithUrl')) {
         return "http://localhost:8000".$path;
     }
 }
+
+if (!function_exists('generateProjectName')) {
+
+    function generateProjectName($id) {
+        return 'sft-' . str_pad($id, 4, '0', STR_PAD_LEFT);
+    }
+}
 ?>

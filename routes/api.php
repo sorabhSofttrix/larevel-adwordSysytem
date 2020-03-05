@@ -25,6 +25,7 @@ Route::group([
     Route::get('get-account-info', 'AdwordsAccountController@getAccountInfo');
     Route::get('get-unassingned-accounts', 'AdwordsAccountController@getUnassignedAccounts');
     Route::post('update-unassingned-accounts', 'AdwordsAccountController@updateUnassignedAccounts');
+    Route::get('check-adwords-account', 'AdwordsAccountController@checkIfAccountExist');
     
 
     Route::get('sync-gaccounts', 'AccountSyncController@syncFromGoogle');

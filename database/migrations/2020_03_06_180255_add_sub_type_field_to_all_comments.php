@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
 
-class AddAccountStatusColumnToTheadwordsAccount extends Migration
+class AddSubTypeFieldToAllComments extends Migration
 {
     /**
      * Run the migrations.
@@ -13,8 +13,8 @@ class AddAccountStatusColumnToTheadwordsAccount extends Migration
      */
     public function up()
     {
-        Schema::table('adwords_accounts', function (Blueprint $table) {
-            $table->enum('acc_status', ['requiredSetup','setup','active','paused','closed'])->default('requiredSetup');
+        Schema::table('all_comments', function (Blueprint $table) {
+            $table->string('sub_type',255)->nullable();
         });
     }
 
@@ -25,8 +25,8 @@ class AddAccountStatusColumnToTheadwordsAccount extends Migration
      */
     public function down()
     {
-        Schema::table('adwords_accounts', function (Blueprint $table) {
-            $table->dropColumn('acc_status');
+        Schema::table('all_comments', function (Blueprint $table) {
+            $table->dropColumn('sub_type');
         });
     }
 }

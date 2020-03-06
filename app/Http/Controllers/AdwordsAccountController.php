@@ -7,12 +7,14 @@ use Illuminate\Http\Request;
 use App\User;
 use App\AccountChangeHistory;
 use App\AccountStatusChange;
+use App\SetupStage;
 use Illuminate\Support\Facades\DB;
 use Validator;
 
 class AdwordsAccountController extends Controller
 {
     public $closePaused = ['closed', 'paused'];
+    public $priority = "'urgent','high','moderate','normal','low'";
     /**
      * Create a new AuthController instance.
      *
@@ -85,6 +87,92 @@ class AdwordsAccountController extends Controller
     }
     
     /**
+     * get all setup-accounts  Adwords Account user wise.
+     *
+     * @return void
+     */
+    public function getSetupAdwordsAccount(Request $request)
+    {
+        $accounts = [];
+        $selectFields = array(
+            'adwords_accounts.id','adwords_accounts.g_acc_id','adwords_accounts.acc_name','adwords_accounts.acc_status', 
+            'adwords_accounts.project_id',
+            'directors.name as director_name', 'managers.name as manager_name',
+            'projects.project_name',
+            'stages.id as stage_id','keywords','adcopies','peer_review','client_keyad_review',
+            'campaign_setup','client_review','conversion_tracking','google_analytics',
+            'gtm',
+        );
+        $accountsQuery = AdwordsAccount::leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
+                        ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
+                        ->leftJoin('projects', 'adwords_accounts.project_id', '=', 'projects.id')
+                        ->leftJoin('setup_stages as stages', 'adwords_accounts.id', '=', 'stages.acc_id')
+                        ->where('acc_status','=','setup')
+                        ->orderByRaw("FIELD(acc_priority, $this->priority)");
+
+        if(isset($request['id']) && $request->id) {
+            $accountsQuery
+                ->leftJoin('users as keywords_user', 'stages.keywords_by', '=', 'keywords_user.id')
+                ->leftJoin('users as adcopies_user', 'stages.adcopies_by', '=', 'adcopies_user.id')
+                ->leftJoin('users as client_keyad_user', 'stages.client_keyad_review_by', '=', 'client_keyad_user.id')
+                ->leftJoin('users as peer_review_user', 'stages.peer_review_by', '=', 'peer_review_user.id')
+                ->leftJoin('users as campaign_setup_user', 'stages.campaign_setup_by', '=', 'campaign_setup_user.id')
+                ->leftJoin('users as client_review_user', 'stages.client_review_confirmed_by', '=', 'client_review_user.id')
+                ->leftJoin('users as conversion_tracking_user', 'stages.conversion_tracking_by', '=', 'conversion_tracking_user.id')
+                ->leftJoin('users as google_analytics_user', 'stages.google_analytics_by', '=', 'google_analytics_user.id')
+                ->leftJoin('users as gtm_user', 'stages.gtm_by', '=', 'gtm_user.id');
+            $singleSelect = array(
+                'keywords_url','keywords_by','keywords_on','keywords_score',
+                'adcopies_url','adcopies_by','adcopies_on','adcopies_score',
+                'peer_review_by','peer_review_on','client_keyad_review_by','client_keyad_review_on',
+                'campaign_setup_by','campaign_setup_on','client_review_confirmed_by','client_review_confirmed_on',
+                'conversion_tracking_by','conversion_tracking_on','google_analytics_by','google_analytics_on',
+                'gtm_by','gtm_on', 
+                'keywords_user.name as keywords_user_name', 'adcopies_user.name as adcopies_user_name', 'client_keyad_user.name as client_keyad_user_name',
+                'peer_review_user.name as peer_review_user_name', 'campaign_setup_user.name as campaign_setup_user_name', 'client_review_user.name as client_review_user_name',
+                'conversion_tracking_user.name as conversion_tracking_user_name', 'google_analytics_user.name as google_analytics_user_name', 'gtm_user.name as gtm_user_name',
+            );
+            $selectFields = array_merge($selectFields,$singleSelect);
+            $accountsQuery->where('adwords_accounts.id',$request->id);
+        }
+
+        //APPEND SELECTION
+        $accountsQuery->select($selectFields);
+
+        $curntUser = (isset($request['userid'])) ? User::find($request->userid) : auth()->user();
+        switch ($curntUser->Roles()->pluck('id')->first()) {
+            case 1:
+                $accounts = $accountsQuery->get();
+                break;
+            case 2:
+                $id= [];
+                $ids = User::select('id')->where('parent_id', '=', $curntUser->id)->get()->toArray();
+                foreach ($ids as $key => $value) { $id[] = $value['id']; }
+                $accounts = $accountsQuery->whereIn('account_director', $id)->get();
+                break;
+            case 3:
+                $accounts = $accountsQuery->where('account_director', '=', $curntUser->id)->get();
+                break;
+            case 4:
+                $accounts = $accountsQuery->where('account_manager', '=', $curntUser->id)->get();
+                break;
+            default:
+                $accounts = null;
+                break;
+        }
+
+        if($accounts != null) {
+            return response()->json(
+                    getResponseObject(true, $accounts, 200, '')
+                    , 200);
+        } else {
+            return response()->json(
+                    getResponseObject(false, '', 400, 'No valid role found')
+                    , 400);
+        }
+    }
+
+    /**
      * get a all Adwords Account.
      *
      * @return void
@@ -97,7 +185,6 @@ class AdwordsAccountController extends Controller
            $status_array = $this->getLastAccountChanges($accounts->id, $accounts->acc_status);
            $accounts = array_merge($accounts->toArray(), $status_array);
         } else {
-            $priority = "'urgent','high','moderate','normal','low'";
             $accountsQuery = AdwordsAccount::
                         select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
@@ -106,24 +193,24 @@ class AdwordsAccountController extends Controller
             $curntUser = (isset($request['userid'])) ? User::find($request->userid) : auth()->user();
             switch ($curntUser->Roles()->pluck('id')->first()) {
                 case 1:
-                    $accounts = $accountsQuery->orderByRaw("FIELD(acc_priority, $priority)")->get();
+                    $accounts = $accountsQuery->orderByRaw("FIELD(acc_priority, $this->priority)")->get();
                     break;
                 case 2:
                     $id= [];
                     $ids = User::select('id')->where('parent_id', '=', $curntUser->id)->get()->toArray();
                     foreach ($ids as $key => $value) { $id[] = $value['id']; }
                     $accounts = $accountsQuery->whereIn('account_director', $id)
-                            ->orderByRaw("FIELD(acc_priority, $priority)")
+                            ->orderByRaw("FIELD(acc_priority, $this->priority)")
                             ->get();
                     break;
                 case 3:
                     $accounts = $accountsQuery->where('account_director', '=', $curntUser->id)
-                        ->orderByRaw("FIELD(acc_priority, $priority)")
+                        ->orderByRaw("FIELD(acc_priority, $this->priority)")
                         ->get();
                     break;
                 case 4:
                     $accounts = $accountsQuery->where('account_manager', '=', $curntUser->id)
-                        ->orderByRaw("FIELD(acc_priority, $priority)")
+                        ->orderByRaw("FIELD(acc_priority, $this->priority)")
                         ->get();
                     break;
                 default:
@@ -225,6 +312,7 @@ class AdwordsAccountController extends Controller
             $acc_status_changes = array();
             $user = auth()->user();
             $g_acc = AdwordsAccount::find($request->id);
+            //get last status change
             $account_status = AccountStatusChange::where('acc_id',$g_acc->id)
                             ->where('new_value',$g_acc->acc_status)
                             ->orderBy('id', 'DESC')->first();
@@ -460,14 +548,14 @@ class AdwordsAccountController extends Controller
                             ->update([
                                     'account_director' => $request->account_director,
                                     'account_manager' => $request->account_manager,
-                                    'acc_status' => 'active'
+                                    'acc_status' => 'setup'
                             ]);
                 $changes = [];
                 foreach($ids as $acc_id) {
                     $ch = array();
                     $ch[] = changeHistoryField('account_director', 'Account Director', 0, $request->account_director, 'Account Director is changed');
                     $ch[] = changeHistoryField('account_manager', 'Account Manager', 0, $request->account_manager, 'Account manager is changed');
-                    $ch[] = changeHistoryField('acc_status', 'Account Status', 'requiredSetup', 'active', 'Account Status changed from `requiredSetup` to `active`');
+                    $ch[] = changeHistoryField('acc_status', 'Account Status', 'requiredSetup', 'setup', 'Account Status changed from `requiredSetup` to `setup`');
                     $changes[] = array( 
                                     'acc_id' => $acc_id, 
                                     'add_by' => $currentUser->id, 
@@ -482,7 +570,7 @@ class AdwordsAccountController extends Controller
                     ));
                     AccountStatusChange::create(array(
                         'add_by' => $currentUser->id,
-                        'new_value' => 'active',
+                        'new_value' => 'setup',
                         'old_value' => 'requiredSetup',
                         'reason_id' => null,
                         'comment' => null,
@@ -491,6 +579,11 @@ class AdwordsAccountController extends Controller
                         'acc_id' => $acc_id,
                         'history_id' => $history->id,
                     ));
+                    SetupStage::create(
+                        array(
+                            'acc_id' => $acc_id,
+                        )
+                    );
                 }
                 return response()->json(
                     getResponseObject(true, 'Account assigned successfully', 200, '')

@@ -4,6 +4,9 @@ namespace App\Http\Controllers;
 
 use App\SetupStage;
 use App\AllComment;
+use App\AdwordsAccount;
+use App\AccountChangeHistory;
+use App\AccountStatusChange;
 use Illuminate\Http\Request;
 use Validator;
 
@@ -143,9 +146,60 @@ class SetupStageController extends Controller
                     }
                 }
                 $currentSatge->save();
-                
+
+                // Check if all stages are clear then move to management by making status active.
+                if(
+                    $currentSatge->keywords == true && 
+                    $currentSatge->adcopies == true && 
+                    $currentSatge->peer_review == true && 
+                    $currentSatge->client_keyad_review == true && 
+                    $currentSatge->campaign_setup == true && 
+                    $currentSatge->client_review == true && 
+                    $currentSatge->conversion_tracking == true && 
+                    $currentSatge->google_analytics == true && 
+                    $currentSatge->gtm == true
+                ){
+                    $account = AdwordsAccount::find($currentSatge->acc_id);
+                    if ($account && $account->acc_status == 'setup') {
+                        $changes = [];
+                        $changes[] = changeHistoryField(
+                            'acc_status', 'Account Status', 
+                            $account->acc_status, 'active', 
+                            'Account Status changed from `'.$account->acc_status.'` to `active`');
+                        
+                        // record for account history
+                        $history = AccountChangeHistory::create([
+                            'acc_id' => $account->id, 
+                            'add_by' => $user->id, 
+                            'changes' => $changes, 
+                        ]);
+
+                        // record for account status changes
+                        $acc_status_change_record = AccountStatusChange::create(
+                            array(
+                                'add_by' => $user->id,
+                                'new_value' => 'active',
+                                'old_value' => $account->acc_status,
+                                'reason_id' => null,
+                                'comment' => null,
+                                'up_comments' => null,
+                                'rating' => null,
+                                'acc_id' => $account->id,
+                                'history_id' => $history->id,
+                            )
+                        );
+
+                        // chnage account status
+                        $account->acc_status = 'active';
+                        $account->save();
+                    }
+                    
+                }
+                $acc = $currentSatge->toArray();
+                $acc['peer_review_comments'] = $currentSatge->peer_review_comments();
+                $acc['client_keyad_comments'] = $currentSatge->client_keyad_comments();
                 return response()->json(
-                    getResponseObject(true, $currentSatge, 200, 'Unauthorized')
+                    getResponseObject(true, $acc, 200, '')
                     , 200);
             } else {
                 return response()->json(

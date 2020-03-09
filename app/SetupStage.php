@@ -1,6 +1,7 @@
 <?php
 
 namespace App;
+use App\AllComment;
 
 use Illuminate\Database\Eloquent\Model;
 
@@ -19,4 +20,32 @@ class SetupStage extends Model
         'gtm', 'gtm_by', 'gtm_on',
         'acc_id' 
     ];
+
+    public function peer_review_comments() {
+        $peer_comments = AllComment::select(
+                            'comment','all_comments.id','all_comments.add_by',
+                            'users.name as add_by_name', 
+                            'all_comments.created_at', 'all_comments.updated_at'
+                            )
+                            ->where('entity_type','stage')
+                            ->where('entity_id',$this->id)
+                            ->where('sub_type','peer_review')
+                            ->leftJoin('users','all_comments.add_by','users.id')
+                            ->get();
+        return $peer_comments;
+    }
+
+    public function client_keyad_comments() {
+        $client_keyad_comments = AllComment::select(
+                            'comment','all_comments.id','all_comments.add_by',
+                            'users.name as add_by_name', 
+                            'all_comments.created_at', 'all_comments.updated_at'
+                            )
+                            ->where('entity_type','stage')
+                            ->where('entity_id',$this->id)
+                            ->where('sub_type','client_keyad_review')
+                            ->leftJoin('users','all_comments.add_by','users.id')
+                            ->get();
+        return $client_keyad_comments;
+    }
 }

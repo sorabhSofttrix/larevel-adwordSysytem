@@ -14,6 +14,7 @@ use Validator;
 class AdwordsAccountController extends Controller
 {
     public $closePaused = ['closed', 'paused'];
+    public $managementAccs = ['closed', 'paused', 'active'];
     public $priority = "";
     /**
      * Create a new AuthController instance.
@@ -190,28 +191,26 @@ class AdwordsAccountController extends Controller
                         select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
-                        ->where('acc_status','!=','requiredSetup');
+                        ->whereIn('acc_status',$this->managementAccs)
+                        ->orderByRaw("FIELD(acc_priority, $this->priority)");
             $curntUser = (isset($request['userid'])) ? User::find($request->userid) : auth()->user();
             switch ($curntUser->Roles()->pluck('id')->first()) {
                 case 1:
-                    $accounts = $accountsQuery->orderByRaw("FIELD(acc_priority, $this->priority)")->get();
+                    $accounts = $accountsQuery->get();
                     break;
                 case 2:
                     $id= [];
                     $ids = User::select('id')->where('parent_id', '=', $curntUser->id)->get()->toArray();
                     foreach ($ids as $key => $value) { $id[] = $value['id']; }
                     $accounts = $accountsQuery->whereIn('account_director', $id)
-                            ->orderByRaw("FIELD(acc_priority, $this->priority)")
                             ->get();
                     break;
                 case 3:
                     $accounts = $accountsQuery->where('account_director', '=', $curntUser->id)
-                        ->orderByRaw("FIELD(acc_priority, $this->priority)")
                         ->get();
                     break;
                 case 4:
                     $accounts = $accountsQuery->where('account_manager', '=', $curntUser->id)
-                        ->orderByRaw("FIELD(acc_priority, $this->priority)")
                         ->get();
                     break;
                 default:

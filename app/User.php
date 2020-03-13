@@ -119,6 +119,9 @@ class User extends Authenticatable implements JWTSubject, HasMedia
         $accountsAray['paused'] = count(array_filter($accounts->toArray(), function ($var) {
             return ($var['acc_status'] == 'paused');
         }));
+        $accountsAray['setup'] = count(array_filter($accounts->toArray(), function ($var) {
+            return ($var['acc_status'] == 'setup');
+        }));
         return array('accounts' => $accountsAray);
     }
 }

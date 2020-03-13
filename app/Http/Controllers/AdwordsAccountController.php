@@ -101,6 +101,8 @@ class AdwordsAccountController extends Controller
             'adwords_accounts.project_id',
             'directors.name as director_name', 'managers.name as manager_name',
             'projects.project_name',
+            'clients.client_name','clients.id as client_id',
+            'profiles.profile_name','profiles.id as profile_id',
             'stages.id as stage_id','keywords','adcopies','peer_review','client_keyad_review',
             'campaign_setup','client_review','conversion_tracking','google_analytics',
             'gtm',
@@ -108,6 +110,8 @@ class AdwordsAccountController extends Controller
         $accountsQuery = AdwordsAccount::leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->leftJoin('projects', 'adwords_accounts.project_id', '=', 'projects.id')
+                        ->leftJoin('clients', 'clients.id', '=', 'projects.client')
+                        ->leftJoin('profiles', 'profiles.id', '=', 'projects.profile')
                         ->leftJoin('setup_stages as stages', 'adwords_accounts.id', '=', 'stages.acc_id')
                         ->where('acc_status','=','setup')
                         ->orderByRaw("FIELD(acc_priority, $this->priority)");
@@ -520,9 +524,19 @@ class AdwordsAccountController extends Controller
 
     public function getUnassignedAccounts() {
         $accounts = [];
-        $accounts = AdwordsAccount::select('adwords_accounts.*', 'directors.name as director_name', 'managers.name as manager_name')
+        $selectFields = [
+            'adwords_accounts.*', 'directors.name as director_name',
+            'managers.name as manager_name',
+            'projects.project_name',
+            'clients.client_name','clients.id as client_id',
+            'profiles.profile_name','profiles.id as profile_id',
+        ];
+        $accounts = AdwordsAccount::select($selectFields)
                     ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                     ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
+                    ->leftJoin('projects', 'adwords_accounts.project_id', '=', 'projects.id')
+                    ->leftJoin('clients', 'clients.id', '=', 'projects.client')
+                    ->leftJoin('profiles', 'profiles.id', '=', 'projects.profile')
                     ->where('acc_status', '=', 'requiredSetup')
                     ->orderBy('cpa', 'DESC')->orderBy('cpc', 'DESC')->orderBy('cost', 'DESC')
                     ->orderBy('conversion', 'DESC')->orderBy('click', 'DESC')

@@ -49,7 +49,7 @@ class SetupStageController extends Controller
                 if(isset($request['acc_id'])) {
                     $stageQuery->where('acc_id',$request->acc_id);
                 } else if( isset($request['stage_id'])){
-                    $stageQuery->where('id',$request->stage_id);
+                    $stageQuery->where('setup_stages.id',$request->stage_id);
                 } else {
                     return response()->json(
                         getResponseObject(true, '', 404, 'Account not found')
@@ -217,6 +217,8 @@ class SetupStageController extends Controller
                 'adwords_accounts.project_id',
                 'directors.name as director_name', 'managers.name as manager_name',
                 'projects.project_name',
+                'clients.client_name','clients.id as client_id',
+                'profiles.profile_name','profiles.id as profile_id',
                 'keywords_user.name as keywords_user_name', 'adcopies_user.name as adcopies_user_name', 'client_keyad_user.name as client_keyad_user_name',
                 'peer_review_user.name as peer_review_user_name', 'campaign_setup_user.name as campaign_setup_user_name', 'client_review_user.name as client_review_user_name',
                 'conversion_tracking_user.name as conversion_tracking_user_name', 'google_analytics_user.name as google_analytics_user_name', 'gtm_user.name as gtm_user_name',
@@ -226,6 +228,8 @@ class SetupStageController extends Controller
                         ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
                         ->leftJoin('projects', 'adwords_accounts.project_id', '=', 'projects.id')
+                        ->leftJoin('clients', 'clients.id', '=', 'projects.client')
+                        ->leftJoin('profiles', 'profiles.id', '=', 'projects.profile')
                         ->leftJoin('users as keywords_user', 'setup_stages.keywords_by', '=', 'keywords_user.id')
                         ->leftJoin('users as adcopies_user', 'setup_stages.adcopies_by', '=', 'adcopies_user.id')
                         ->leftJoin('users as client_keyad_user', 'setup_stages.client_keyad_review_by', '=', 'client_keyad_user.id')

@@ -75,4 +75,7 @@ Route::group([
     Route::get('get-projects', 'ProjectController@get');
     Route::post('add-project-comment', 'ProjectController@addComment');
     Route::get('delete-additional-file', 'ProjectController@deleteAdditionalFile');
+
+    // Hour Billing
+    Route::post('log-hours', 'HourBillingController@addHourlyBilling');
 });

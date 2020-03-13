@@ -14,7 +14,7 @@ use Validator;
 class AdwordsAccountController extends Controller
 {
     public $closePaused = ['closed', 'paused'];
-    public $priority = "'urgent','high','moderate','normal','low'";
+    public $priority = "";
     /**
      * Create a new AuthController instance.
      *
@@ -23,6 +23,7 @@ class AdwordsAccountController extends Controller
     public function __construct()
     {
         $this->middleware('jwt', ['except' => ['login']]);
+        $this->priority = getSortedPriorityString();
     }
     
     /**
@@ -292,7 +293,7 @@ class AdwordsAccountController extends Controller
     {
         $valdRules = [
                 'id' => 'required',
-                'g_acc_id' => 'required|string|max:10|min:10',
+                'g_acc_id' => 'string|max:10|min:10',
                 'acc_name' => 'string|max:255',
                 'cron_time' => 'in:6,12,24',
                 'acc_priority' => 'in:low,normal,moderate,high,urgent',
@@ -312,12 +313,27 @@ class AdwordsAccountController extends Controller
             $acc_status_changes = array();
             $user = auth()->user();
             $g_acc = AdwordsAccount::find($request->id);
-            //get last status change
-            $account_status = AccountStatusChange::where('acc_id',$g_acc->id)
-                            ->where('new_value',$g_acc->acc_status)
-                            ->orderBy('id', 'DESC')->first();
-            if($g_acc  && $g_acc->g_acc_id == $request->g_acc_id) {
+            if($g_acc) {
 
+                // if changing google account id
+                if(isset($request['g_acc_id']) && !empty($request->g_acc_id) && $request->g_acc_id != $g_acc->g_acc_id) {
+                    $checkGoogleID = AdwordsAccount::where('g_acc_id',$request->g_acc_id)->get()->toArray();
+                    if(!count($checkGoogleID)) {
+                        $oldID = $g_acc->g_acc_id ? $g_acc->g_acc_id : 'None';
+                        $changes[] = changeHistoryField('g_acc_id', 'Google Account Id', $g_acc->g_acc_id, $request->g_acc_id, 'Google Account Id changed from `'.$oldID.'` to `'.$request->g_acc_id.'`');
+                        $g_acc->g_acc_id = $request->g_acc_id;
+                    } else {
+                        return response()->json(
+                            getResponseObject(false, '', 400, 'Account  id '.$request->g_acc_id.' already exists')
+                            , 400);
+                    }
+                }
+
+                //get last status change
+                $account_status = AccountStatusChange::where('acc_id',$g_acc->id)
+                ->where('new_value',$g_acc->acc_status)
+                ->orderBy('id', 'DESC')->first();
+                
                 /* Changes to account acc_status*/
 
                 if(isset($request['acc_status']) && $request->acc_status != $g_acc->acc_status) {
@@ -348,7 +364,8 @@ class AdwordsAccountController extends Controller
                     );
                     $g_acc->acc_status = $request->acc_status;
                 } else {
-                    if($account_status->id == $request->ascs_id) {
+                    // if chnages to reason comment or upwork comment to the current status
+                    if($account_status && $account_status->id == $request->ascs_id) {
 
                         /* Changes to paused/closed reason */ 
                         if(isset($request['reason_id']) && $request->reason_id != $account_status->reason_id) {
@@ -475,6 +492,7 @@ class AdwordsAccountController extends Controller
                         }
                     }
                 }
+                
                 $g_acc->save();
                 if($changes && count($changes) > 0) {
                     $history = AccountChangeHistory::create([
@@ -482,10 +500,12 @@ class AdwordsAccountController extends Controller
                         'add_by' => auth()->user()->id, 
                         'changes' => $changes, 
                     ]);
-                    $acc_status_changes['history_id'] = $history->id;
-                    $acc_status_change_record = AccountStatusChange::create(
-                        $acc_status_changes
-                    );
+                    if(count($acc_status_changes)) {
+                        $acc_status_changes['history_id'] = $history->id;
+                        $acc_status_change_record = AccountStatusChange::create(
+                            $acc_status_changes
+                        );
+                    }
                 }
                 $status_g_array = $this->getLastAccountChanges($g_acc->id, $g_acc->acc_status);
                 return response()->json(

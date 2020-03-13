@@ -72,4 +72,11 @@ if (!function_exists('generateProjectName')) {
         return 'sft-' . str_pad($id, 4, '0', STR_PAD_LEFT);
     }
 }
+
+if (!function_exists('getSortedPriorityString')) {
+
+    function getSortedPriorityString() {
+        return "'urgent','high','moderate','normal','low'";
+    }
+}
 ?>

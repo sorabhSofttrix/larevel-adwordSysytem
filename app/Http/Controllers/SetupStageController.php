@@ -44,10 +44,12 @@ class SetupStageController extends Controller
             $date = date('Y-m-d H:i:s');
             $user = auth()->user();
             if($user) {
+                $stageQuery = SetupStage::select('setup_stages.*','g_acc_id','acc_name')
+                                ->leftJoin('adwords_accounts','adwords_accounts.id','setup_stages.acc_id');
                 if(isset($request['acc_id'])) {
-                    $stageQuery = SetupStage::where('acc_id',$request->acc_id);
+                    $stageQuery->where('acc_id',$request->acc_id);
                 } else if( isset($request['stage_id'])){
-                    $stageQuery = SetupStage::where('id',$request->stage_id);
+                    $stageQuery->where('id',$request->stage_id);
                 } else {
                     return response()->json(
                         getResponseObject(true, '', 404, 'Account not found')
@@ -195,9 +197,7 @@ class SetupStageController extends Controller
                     }
                     
                 }
-                $acc = $currentSatge->toArray();
-                $acc['peer_review_comments'] = $currentSatge->peer_review_comments();
-                $acc['client_keyad_comments'] = $currentSatge->client_keyad_comments();
+                $acc = $this->getStageAccountResponse($currentSatge->id);
                 return response()->json(
                     getResponseObject(true, $acc, 200, '')
                     , 200);
@@ -206,6 +206,42 @@ class SetupStageController extends Controller
                     getResponseObject(false, '', 401, 'Unauthorized')
                     , 401);
             }
+        }
+    }
+
+    public function getStageAccountResponse($id) {
+        if($id) {
+            $selectFields = array(
+                'setup_stages.*',
+                'adwords_accounts.g_acc_id','adwords_accounts.acc_name','adwords_accounts.acc_status', 
+                'adwords_accounts.project_id',
+                'directors.name as director_name', 'managers.name as manager_name',
+                'projects.project_name',
+                'keywords_user.name as keywords_user_name', 'adcopies_user.name as adcopies_user_name', 'client_keyad_user.name as client_keyad_user_name',
+                'peer_review_user.name as peer_review_user_name', 'campaign_setup_user.name as campaign_setup_user_name', 'client_review_user.name as client_review_user_name',
+                'conversion_tracking_user.name as conversion_tracking_user_name', 'google_analytics_user.name as google_analytics_user_name', 'gtm_user.name as gtm_user_name',
+            );
+            $stage = SetupStage::select($selectFields)
+                        ->leftJoin('adwords_accounts','setup_stages.acc_id','=','adwords_accounts.id')
+                        ->leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
+                        ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
+                        ->leftJoin('projects', 'adwords_accounts.project_id', '=', 'projects.id')
+                        ->leftJoin('users as keywords_user', 'setup_stages.keywords_by', '=', 'keywords_user.id')
+                        ->leftJoin('users as adcopies_user', 'setup_stages.adcopies_by', '=', 'adcopies_user.id')
+                        ->leftJoin('users as client_keyad_user', 'setup_stages.client_keyad_review_by', '=', 'client_keyad_user.id')
+                        ->leftJoin('users as peer_review_user', 'setup_stages.peer_review_by', '=', 'peer_review_user.id')
+                        ->leftJoin('users as campaign_setup_user', 'setup_stages.campaign_setup_by', '=', 'campaign_setup_user.id')
+                        ->leftJoin('users as client_review_user', 'setup_stages.client_review_confirmed_by', '=', 'client_review_user.id')
+                        ->leftJoin('users as conversion_tracking_user', 'setup_stages.conversion_tracking_by', '=', 'conversion_tracking_user.id')
+                        ->leftJoin('users as google_analytics_user', 'setup_stages.google_analytics_by', '=', 'google_analytics_user.id')
+                        ->leftJoin('users as gtm_user', 'setup_stages.gtm_by', '=', 'gtm_user.id')
+                        ->where('setup_stages.id','=',$id)->get();
+            $stageArr = $stage[0];
+            $stageArr['peer_review_comments'] = $stage[0]->peer_review_comments();
+            $stageArr['client_keyad_comments'] = $stage[0]->client_keyad_comments();
+            return $stageArr;
+        } else  {
+            return null;
         }
     }
 }

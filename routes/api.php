@@ -33,14 +33,6 @@ Route::group([
     // Stages 
     Route::post('update-stage', 'SetupStageController@updateSetupStages');
     
-    
-
-    Route::get('sync-gaccounts', 'AccountSyncController@syncFromGoogle');
-    Route::get('cron-compare', 'AccountSyncController@cronCompare');
-    Route::get('send-pending-email', 'AccountSyncController@sendPendingMails');
-    Route::get('send-live-pending-email', 'AccountSyncController@sendPendingLiveMails');
-
-    
     Route::get('get-dashboard-alerts', 'AlertController@getAllAlertsForDashboard');
     Route::get('get-alerts-count', 'AlertController@getAlertsCountForDashboard');
     Route::post('update-alert', 'AlertController@updateAlert');  
@@ -80,3 +72,9 @@ Route::group([
     // Hour Billing
     Route::post('log-hours', 'HourBillingController@addHourlyBilling');
 });
+
+
+// Route::get('sync-gaccounts', 'AccountSyncController@syncFromGoogle');
+Route::get('cron-compare', 'AccountSyncController@cronCompare');
+Route::get('send-pending-email', 'AccountSyncController@sendPendingMails');
+Route::get('send-live-pending-email', 'AccountSyncController@sendPendingLiveMails');

@@ -56,11 +56,6 @@ class AccountSyncController extends Controller
      *
      * @return void
      */
-    public function __construct()
-    {
-        $this->middleware('jwt');
-    }
-
     public function cleanID($id) {
         return preg_replace('/[^a-z0-9]/i','', $id);
     }
@@ -319,7 +314,6 @@ class AccountSyncController extends Controller
         } while ($selector->getPaging()->getStartIndex() < $totalNumEntries);
 
         if (count($customerIdsToAccounts) >= 1) {
-            $user = auth()->user();
             $records = [];
 
             /* report selector */
@@ -389,7 +383,7 @@ class AccountSyncController extends Controller
                                     'g_acc_id' => $g_account->getCustomerId(),
                                     'cron_time' => '24',
                                     'acc_priority' => 'normal',
-                                    'add_by' => $user->id,
+                                    'add_by' => 1,
                                     'updated_at' => date('Y-m-d H:i:s'),
                                     'created_at' => date('Y-m-d H:i:s')
                                 );

@@ -105,7 +105,7 @@ class AdwordsAccountController extends Controller
             'profiles.profile_name','profiles.id as profile_id',
             'stages.id as stage_id','keywords','adcopies','peer_review','client_keyad_review',
             'campaign_setup','client_review','conversion_tracking','google_analytics',
-            'gtm',
+            'gtm','campaign_live',
         );
         $accountsQuery = AdwordsAccount::leftJoin('users as directors', 'adwords_accounts.account_director', '=', 'directors.id')
                         ->leftJoin('users as managers', 'adwords_accounts.account_manager', '=', 'managers.id')
@@ -126,7 +126,8 @@ class AdwordsAccountController extends Controller
                 ->leftJoin('users as client_review_user', 'stages.client_review_confirmed_by', '=', 'client_review_user.id')
                 ->leftJoin('users as conversion_tracking_user', 'stages.conversion_tracking_by', '=', 'conversion_tracking_user.id')
                 ->leftJoin('users as google_analytics_user', 'stages.google_analytics_by', '=', 'google_analytics_user.id')
-                ->leftJoin('users as gtm_user', 'stages.gtm_by', '=', 'gtm_user.id');
+                ->leftJoin('users as gtm_user', 'stages.gtm_by', '=', 'gtm_user.id')
+                ->leftJoin('users as campaign_live_user', 'stages.campaign_live_by', '=', 'campaign_live_user.id');
             $singleSelect = array(
                 'keywords_url','keywords_by','keywords_on','keywords_score',
                 'adcopies_url','adcopies_by','adcopies_on','adcopies_score',
@@ -134,9 +135,11 @@ class AdwordsAccountController extends Controller
                 'campaign_setup_by','campaign_setup_on','client_review_confirmed_by','client_review_confirmed_on',
                 'conversion_tracking_by','conversion_tracking_on','google_analytics_by','google_analytics_on',
                 'gtm_by','gtm_on', 
+                'campaign_live_by','campaign_live_on', 
                 'keywords_user.name as keywords_user_name', 'adcopies_user.name as adcopies_user_name', 'client_keyad_user.name as client_keyad_user_name',
                 'peer_review_user.name as peer_review_user_name', 'campaign_setup_user.name as campaign_setup_user_name', 'client_review_user.name as client_review_user_name',
                 'conversion_tracking_user.name as conversion_tracking_user_name', 'google_analytics_user.name as google_analytics_user_name', 'gtm_user.name as gtm_user_name',
+                'campaign_live_user.name as campaign_live_user_name',
             );
             $selectFields = array_merge($selectFields,$singleSelect);
             $accountsQuery->where('adwords_accounts.id',$request->id);

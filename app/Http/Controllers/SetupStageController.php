@@ -147,6 +147,14 @@ class SetupStageController extends Controller
                         AllComment::create($comment);
                     }
                 }
+
+                // if adding campaign_live
+                if(isset($request['campaign_live']) && $request->campaign_live) {
+                    $currentSatge->campaign_live = true;
+                    $currentSatge->campaign_live_by = $user->id;
+                    $currentSatge->campaign_live_on = $date;
+                }
+
                 $currentSatge->save();
 
                 // Check if all stages are clear then move to management by making status active.
@@ -159,7 +167,8 @@ class SetupStageController extends Controller
                     $currentSatge->client_review == true && 
                     $currentSatge->conversion_tracking == true && 
                     $currentSatge->google_analytics == true && 
-                    $currentSatge->gtm == true
+                    $currentSatge->gtm == true && 
+                    $currentSatge->campaign_live == true
                 ){
                     $account = AdwordsAccount::find($currentSatge->acc_id);
                     if ($account && $account->acc_status == 'setup') {
@@ -222,6 +231,7 @@ class SetupStageController extends Controller
                 'keywords_user.name as keywords_user_name', 'adcopies_user.name as adcopies_user_name', 'client_keyad_user.name as client_keyad_user_name',
                 'peer_review_user.name as peer_review_user_name', 'campaign_setup_user.name as campaign_setup_user_name', 'client_review_user.name as client_review_user_name',
                 'conversion_tracking_user.name as conversion_tracking_user_name', 'google_analytics_user.name as google_analytics_user_name', 'gtm_user.name as gtm_user_name',
+                'campaign_live_user.name as campaign_live_user_name',
             );
             $stage = SetupStage::select($selectFields)
                         ->leftJoin('adwords_accounts','setup_stages.acc_id','=','adwords_accounts.id')
@@ -239,6 +249,7 @@ class SetupStageController extends Controller
                         ->leftJoin('users as conversion_tracking_user', 'setup_stages.conversion_tracking_by', '=', 'conversion_tracking_user.id')
                         ->leftJoin('users as google_analytics_user', 'setup_stages.google_analytics_by', '=', 'google_analytics_user.id')
                         ->leftJoin('users as gtm_user', 'setup_stages.gtm_by', '=', 'gtm_user.id')
+                        ->leftJoin('users as campaign_live_user', 'setup_stages.campaign_live_by', '=', 'campaign_live_user.id')
                         ->where('setup_stages.id','=',$id)->get();
             $stageArr = $stage[0];
             $stageArr['peer_review_comments'] = $stage[0]->peer_review_comments();

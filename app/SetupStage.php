@@ -17,7 +17,7 @@ class SetupStage extends Model
         'client_review', 'client_review_confirmed_by', 'client_review_confirmed_on',
         'conversion_tracking', 'conversion_tracking_by', 'conversion_tracking_on', 
         'google_analytics', 'google_analytics_by', 'google_analytics_on',
-        'gtm', 'gtm_by', 'gtm_on',
+        'gtm', 'gtm_by', 'gtm_on','campaign_live','campaign_live_by','campaign_live_on',
         'acc_id' 
     ];
 

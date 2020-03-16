@@ -38,6 +38,7 @@ Route::group([
     Route::get('sync-gaccounts', 'AccountSyncController@syncFromGoogle');
     Route::get('cron-compare', 'AccountSyncController@cronCompare');
     Route::get('send-pending-email', 'AccountSyncController@sendPendingMails');
+    Route::get('send-live-pending-email', 'AccountSyncController@sendPendingLiveMails');
 
     
     Route::get('get-dashboard-alerts', 'AlertController@getAllAlertsForDashboard');

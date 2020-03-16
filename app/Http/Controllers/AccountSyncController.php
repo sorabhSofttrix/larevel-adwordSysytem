@@ -10,10 +10,13 @@ use App\PerformanceReport;
 use App\Alert;
 use App\User;
 use App\AccountIssue;
+use App\SetupStage;
+
 
 use Illuminate\Support\Facades\Mail;
 use App\Mail\AlertMail;
 use App\Mail\PendingAlertMail;
+use App\Mail\AccountPendingMail;
 
 use Validator;
 use Excel;
@@ -435,5 +438,32 @@ class AccountSyncController extends Controller
             getResponseObject(false, 'emails sent.'   , 200, '')
             , 200);
     }
+
+    public function sendPendingLiveMails() {
+        $accounts = SetupStage::select('setup_stages.*','g_acc_id','acc_name','directors.email as director_email', 'managers.email as manager_email', 'admins.email as admin_email')
+                                ->leftJoin('adwords_accounts','adwords_accounts.id','setup_stages.acc_id')
+                                ->leftJoin('users as directors','directors.id','adwords_accounts.account_director')
+                                ->leftJoin('users as admins','admins.id','directors.parent_id')
+                                ->leftJoin('users as managers','managers.id','adwords_accounts.account_manager')
+                                ->where('setup_stages.gtm',true)
+                                ->where('setup_stages.campaign_live',false)
+                                ->get();
+        foreach($accounts as $al) {
+            $accountData = array(
+                'g_acc_id' => $al->g_acc_id,
+                'acc_name' => $al->acc_name,
+                'atStage' => 'GTM'
+            );
+
+            Mail::to($al->manager_email)
+                ->cc($al->director_email)
+                ->bcc($al->admin_email)
+                ->queue(new AccountPendingMail($accountData));
+        }
+        return response()->json(
+            getResponseObject(false, 'emails sent.'   , 200, '')
+            , 200);
+    }
+
 
 }

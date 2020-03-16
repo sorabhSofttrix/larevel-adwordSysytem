@@ -10,6 +10,9 @@ use App\AccountStatusChange;
 use Illuminate\Http\Request;
 use Validator;
 
+use Illuminate\Support\Facades\Mail;
+use App\Mail\StageCommentMail;
+
 class SetupStageController extends Controller
 {
     /**
@@ -44,8 +47,11 @@ class SetupStageController extends Controller
             $date = date('Y-m-d H:i:s');
             $user = auth()->user();
             if($user) {
-                $stageQuery = SetupStage::select('setup_stages.*','g_acc_id','acc_name')
-                                ->leftJoin('adwords_accounts','adwords_accounts.id','setup_stages.acc_id');
+                $stageQuery = SetupStage::select('setup_stages.*','g_acc_id','acc_name','directors.email as director_email', 'managers.email as manager_email')
+                                ->leftJoin('adwords_accounts','adwords_accounts.id','setup_stages.acc_id')
+                                ->leftJoin('users as directors','directors.id','adwords_accounts.account_director')
+                                ->leftJoin('users as managers','managers.id','adwords_accounts.account_manager');
+                
                 if(isset($request['acc_id'])) {
                     $stageQuery->where('acc_id',$request->acc_id);
                 } else if( isset($request['stage_id'])){
@@ -56,7 +62,6 @@ class SetupStageController extends Controller
                         , 404);
                 }
                 $currentSatge = $stageQuery->firstOrFail();
-                
                 // if adding Keywords
                 if(isset($request['keywords_url']) && $request->keywords_url != $currentSatge->keywords_url) {
                     $currentSatge->keywords = true;
@@ -144,7 +149,21 @@ class SetupStageController extends Controller
                             'add_by' => $user->id,
                             'comment' => $request->comment,
                         );
-                        AllComment::create($comment);
+                        $commentData = AllComment::create($comment);
+                    }
+
+                    if($commentData) {
+                        $comment = [];
+                        $comment['atStage'] = $commentData->sub_type;
+                        $comment['comment'] = $commentData->comment;
+                        $comment['comment_by'] = $user->name;
+                        $comment['comment_by_email'] = $user->email;
+                        $comment['comment_at'] = $commentData->created_at;
+                        $comment['g_acc_id'] = $currentSatge->g_acc_id;
+                        $comment['acc_name'] = $currentSatge->acc_name;
+                        Mail::to($currentSatge->manager_email)
+                            ->cc($currentSatge->director_email)
+                            ->queue(new StageCommentMail($comment));
                     }
                 }
 
